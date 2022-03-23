@@ -2,4 +2,36 @@
 
 This is a ROS1 port of the [ROS2 Local Planner plugin](https://navigation.ros.org/configuration/packages/configuring-regulated-pp.html). They are conceptually the same, however the source code may differ due to the lack of similar API/functions within ROS1. Of course, that being said, we should all prepare to move to ROS2, yet a significant proportion of existing robots still utilise the ROS1 ecosystem, and since there is a lack of good pure pursuit planner sout there, this port could prove to be a viable local planner replacement.
 
-The Parameters are the same, please refer to the (Nav2 Regulated Pure Pursuit Controller)[https://github.com/ros-planning/navigation2/tree/main/nav2_regulated_pure_pursuit_controller] for more details
+The Parameters are the same, please refer to the [Nav2 Regulated Pure Pursuit Controller](https://github.com/ros-planning/navigation2/tree/main/nav2_regulated_pure_pursuit_controller) for more details
+
+---
+
+# Dependencies
+
+1. ddynamic_reconfigure
+
+
+# Deviations from Nav2 Package
+
+## `computeVelocityCommands(geometry_msgs::Twist &cmd_vel)`
+In ROS2, the corresponding method is 
+
+`computeVelocityCommands( const geometry_msgs::msg::PoseStamped & pose, const geometry_msgs::msg::Twist & speed, nav2_core::GoalChecker * goal_checker)`.
+
+Where the robot velocity(`speed`) is already supplied to the method, and the goal_checker already replacing the need for a `isGoalReached()` method.
+
+In the ported version, we have to use the ROS1 `isGoalReached()` method to check for goals, and the robot velocity is obtained through the `base_local_planner::OdometryHelperRos` API.
+
+
+## `setPlan(const std::vector<geometry_msgs::PoseStamped>& orig_global_plan)`
+
+ROS2 uses `setPlan(const nav_msgs::msg::Path & path)`, so we have to convert the global plan to a nav_msgs::path message type for further processing.
+
+## nav2_util::geometry_utils
+
+The nav2_util library (really useful btw) is not available in ROS1, so we have kindly borrowed it in the form of "include/regulated_pure_pursuit_controller/geometry_utils.h", thanks Intel!
+
+# TODO
+
+1. Add ability to reverse
+2. Add support for move_base_flex

@@ -9,6 +9,7 @@
 #include <nav_core/base_local_planner.h>
 
 #include <base_local_planner/odometry_helper_ros.h>
+#include <base_local_planner/costmap_model.h>
 #include <tf2/utils.h>
 #include <tf/tf.h>
 
@@ -27,7 +28,9 @@ namespace regulated_pure_pursuit_controller{
 
     RegulatedPurePursuitController();
 
-    ~RegulatedPurePursuitController(){};
+    ~RegulatedPurePursuitController(){
+      delete costmap_model_;
+    };
 
     /**
      * Initialization methods
@@ -96,9 +99,21 @@ namespace regulated_pure_pursuit_controller{
         const double & carrot_dist);
 
     /**
+     * @brief Check if goal is reached by pose within a tolerance of goal_dist_tol_
+     * 
+     * @param pose Pose to check against
+     */
+    void checkGoalReached(geometry_msgs::PoseStamped& pose);
+
+    /**
      * Helper methods
      */
 
+    /**
+     * @brief Get the maximum extent of costmap (from costmap center along its edges to the edge)
+     * 
+     * @return double 
+     */
     double getCostmapMaxExtent() const;
 
     double euclidean_distance(const geometry_msgs::PoseStamped& p1,
@@ -166,10 +181,15 @@ namespace regulated_pure_pursuit_controller{
       tf2_ros::Buffer* tf_;
       costmap_2d::Costmap2D* costmap_;
       costmap_2d::Costmap2DROS* costmap_ros_;
+      base_local_planner::CostmapModel* costmap_model_; //For retrieving robot footprint cost
       geometry_msgs::PoseStamped current_pose_;
       base_local_planner::OdometryHelperRos odom_helper_;
 
       // for visualisation, publishers of global and local plan
+      /**
+       * @brief 
+       * 
+       */
       ros::Publisher global_path_pub_, local_plan_pub_;
       ros::Publisher carrot_pub_;
       ros::Publisher carrot_arc_pub_;
@@ -181,7 +201,7 @@ namespace regulated_pure_pursuit_controller{
        */
       // std::vector<geometry_msgs::PoseStamped> global_plan_;
       nav_msgs::Path global_plan_;
-      bool goal_reached_{false};
+      bool goal_reached_;
 
 
   };

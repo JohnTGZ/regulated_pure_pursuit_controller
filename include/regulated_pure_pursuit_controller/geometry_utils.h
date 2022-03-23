@@ -26,8 +26,8 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <nav_msgs/Path.h>
 
-
-
+namespace nav2_util
+{
 
 namespace geometry_utils
 {
@@ -164,5 +164,7 @@ inline double calculate_path_length(const nav_msgs::Path & path, size_t start_in
 }
 
 }  // namespace geometry_utils
+
+} //namespace nav2_util
 
 #endif  // GEOMETRY_UTILS_HPP_
