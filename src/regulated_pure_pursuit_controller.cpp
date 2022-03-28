@@ -57,45 +57,82 @@ namespace regulated_pure_pursuit_controller
 
         //Lookahead
         nh.param<double>("lookahead_time", lookahead_time_, 1.5);
-        nh.param<double>("lookahead_dist", lookahead_dist_, 1.5);
+        nh.param<double>("lookahead_dist", lookahead_dist_, 0.25);
         nh.param<bool>("use_velocity_scaled_lookahead_dist", use_velocity_scaled_lookahead_dist_, false);
-        nh.param<double>("min_lookahead_dist", min_lookahead_dist_, 1.5);
-        nh.param<double>("max_lookahead_dist", max_lookahead_dist_, 1.5);
+        nh.param<double>("min_lookahead_dist", min_lookahead_dist_, 0.3);
+        nh.param<double>("max_lookahead_dist", max_lookahead_dist_, 0.9);
 
         //Rotate to heading param
-
-        nh.param<bool>("use_rotate_to_heading", use_rotate_to_heading_, 1.5);
-        
-        nh.param<double>("rotate_to_heading_min_angle", rotate_to_heading_min_angle_, 1.5);
-        nh.param<double>("rotate_to_heading_angular_vel", rotate_to_heading_angular_vel_, 1.5);
+        nh.param<bool>("use_rotate_to_heading", use_rotate_to_heading_, false);
+        nh.param<double>("rotate_to_heading_min_angle", rotate_to_heading_min_angle_, 0.785);
+        nh.param<double>("rotate_to_heading_angular_vel", rotate_to_heading_angular_vel_, 1.8);
         nh.param<double>("max_angular_accel", max_angular_accel_, 1.5);
+
+        //Speed
+        nh.param<double>("desired_linear_vel", desired_linear_vel_, 0.5);
+        nh.param<double>("min_approach_linear_velocity", min_approach_linear_velocity_, 0.05);
 
         //Regulated linear velocity scaling
         nh.param<bool>("use_regulated_linear_velocity_scaling", use_regulated_linear_velocity_scaling_, false);
-        nh.param<double>("desired_linear_vel", desired_linear_vel_, 0.2);
-        nh.param<double>("min_approach_linear_velocity", min_approach_linear_velocity_, 0.2);
-        nh.param<double>("regulated_linear_scaling_min_radius", regulated_linear_scaling_min_radius_, 0.2);
-        nh.param<double>("regulated_linear_scaling_min_speed", regulated_linear_scaling_min_speed_, 0.2);
+        nh.param<double>("regulated_linear_scaling_min_radius", regulated_linear_scaling_min_radius_, 0.9);
+        nh.param<double>("regulated_linear_scaling_min_speed", regulated_linear_scaling_min_speed_, 0.25);
         
         //Inflation cost scaling (Limit velocity by proximity to obstacles)
-        nh.param<double>("use_cost_regulated_linear_velocity_scaling", use_cost_regulated_linear_velocity_scaling_, 1.5);
-        nh.param<double>("inflation_cost_scaling_factor", inflation_cost_scaling_factor_, 1.5);
-        nh.param<double>("cost_scaling_dist", cost_scaling_dist_, 1.5);
-        nh.param<double>("cost_scaling_gain", cost_scaling_gain_, 1.5);
+        nh.param<bool>("use_cost_regulated_linear_velocity_scaling", use_cost_regulated_linear_velocity_scaling_, true);
+        nh.param<double>("inflation_cost_scaling_factor", inflation_cost_scaling_factor_, 3.0);
+        nh.param<double>("cost_scaling_dist", cost_scaling_dist_, 0.6);
+        nh.param<double>("cost_scaling_gain", cost_scaling_gain_, 1.0);
 
         //Collision avoidance
         nh.param<double>("max_allowed_time_to_collision_up_to_carrot", max_allowed_time_to_collision_up_to_carrot_, 1.0);
         
-        nh.param<double>("goal_dist_tol", goal_dist_tol_, 0.2);
+        nh.param<double>("goal_dist_tol", goal_dist_tol_, 0.25);
 
         double control_frequency;
         nh.param<double>("control_frequency", control_frequency, 20);
         control_duration_ = 1.0 / control_frequency;
 
-
         double transform_tolerance;
-        nh.param<double>("transform_tolerance", transform_tolerance, 0.2);
+        nh.param<double>("transform_tolerance", transform_tolerance, 0.1);
         transform_tolerance_ = ros::Duration(transform_tolerance);
+
+
+        //Ddynamic Reconfigure
+
+        ddr_.reset(new ddynamic_reconfigure::DDynamicReconfigure(nh));
+        ddr_->registerVariable<double>("lookahead_time", &this->lookahead_time_, "", 0.0, 20.0);
+        ddr_->registerVariable<double>("lookahead_dist", &this->lookahead_time_, "", 0.0, 20.0);
+
+        ddr_->registerVariable<bool>("use_velocity_scaled_lookahead_dist", &this->use_velocity_scaled_lookahead_dist_);
+        ddr_->registerVariable<double>("min_lookahead_dist", &this->min_lookahead_dist_, "", 0.0, 5.0);
+        ddr_->registerVariable<double>("max_lookahead_dist", &this->max_lookahead_dist_, "", 0.0, 10.0);
+
+        //Rotate to heading param
+        ddr_->registerVariable<bool>("use_rotate_to_heading", &this->use_rotate_to_heading_);
+        ddr_->registerVariable<double>("rotate_to_heading_min_angle", &this->rotate_to_heading_min_angle_, "", 0.0, 15.0);
+        ddr_->registerVariable<double>("rotate_to_heading_angular_vel", &this->rotate_to_heading_angular_vel_, "", 0.0, 15.0);
+        ddr_->registerVariable<double>("max_angular_accel", &this->max_angular_accel_, "", 0.0, 15.0);
+
+        //Speed
+        ddr_->registerVariable<double>("desired_linear_vel", &this->desired_linear_vel_, "", 0.0, 10.0);
+        ddr_->registerVariable<double>("min_approach_linear_velocity", &this->min_approach_linear_velocity_, "", 0.0, 10.0);
+
+        //Regulated linear velocity scaling
+        ddr_->registerVariable<bool>("use_regulated_linear_velocity_scaling", &this->use_regulated_linear_velocity_scaling_);
+        ddr_->registerVariable<double>("regulated_linear_scaling_min_radius", &this->regulated_linear_scaling_min_radius_, "", 0.0, 5.0);
+        ddr_->registerVariable<double>("regulated_linear_scaling_min_speed", &this->regulated_linear_scaling_min_speed_, "", 0.0, 5.0);
+        
+        //Inflation cost scaling (Limit velocity by proximity to obstacles)
+        ddr_->registerVariable<bool>("use_cost_regulated_linear_velocity_scaling", &this->use_cost_regulated_linear_velocity_scaling_);
+        ddr_->registerVariable<double>("inflation_cost_scaling_factor", &this->inflation_cost_scaling_factor_, "", 0.0, 10.0);
+        ddr_->registerVariable<double>("cost_scaling_dist", &this->cost_scaling_dist_, "", 0.0, 10.0);
+        ddr_->registerVariable<double>("cost_scaling_gain", &this->cost_scaling_gain_, "", 0.0, 10.0);
+
+        //Collision avoidance
+        ddr_->registerVariable<double>("max_allowed_time_to_collision_up_to_carrot", &this->max_allowed_time_to_collision_up_to_carrot_, "", 0.0, 10.0);
+        ddr_->registerVariable<double>("goal_dist_tol", &this->goal_dist_tol_, "", 0.0, 4.0);
+
+        ddr_->publishServicesTopics();
         
     }
 
@@ -132,6 +169,9 @@ namespace regulated_pure_pursuit_controller
         //Get current pose of robot
         geometry_msgs::PoseStamped pose; 
         costmap_ros_->getRobotPose(pose);
+        ROS_INFO("Got robot pose with frame_id: %s", pose.header.frame_id.c_str());
+        ROS_INFO("Global Plan frame_id: %s", global_plan_.header.frame_id.c_str());
+        
 
         //Get the current speed of the robot
         geometry_msgs::Twist speed; 
@@ -404,7 +444,7 @@ namespace regulated_pure_pursuit_controller
 
             transformPose(costmap_ros_->getBaseFrameID(), stamped_pose, transformed_pose);
             return transformed_pose;
-            };
+        };
 
 
         // Transform the near part of the global plan into the robot's frame of reference.
@@ -417,7 +457,6 @@ namespace regulated_pure_pursuit_controller
 
         transformed_plan.header.frame_id = costmap_ros_->getBaseFrameID();
         transformed_plan.header.stamp = robot_pose.header.stamp;
-
 
         // Remove the portion of the global plan that we've already passed so we don't
         // process it on the next iteration (this is called path pruning)

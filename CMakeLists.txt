@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
         nav_core
         nav_msgs
         pluginlib
+        ddynamic_reconfigure
         tf
 )
 

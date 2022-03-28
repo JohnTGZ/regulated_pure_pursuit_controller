@@ -8,6 +8,7 @@
 // abstract class from which our plugin inherits
 #include <nav_core/base_local_planner.h>
 
+#include <ddynamic_reconfigure/ddynamic_reconfigure.h>
 #include <base_local_planner/odometry_helper_ros.h>
 #include <base_local_planner/costmap_model.h>
 #include <tf2/utils.h>
@@ -141,10 +142,10 @@ namespace regulated_pure_pursuit_controller{
       double max_robot_pose_search_dist_;
 
       //Lookahead
+      bool use_velocity_scaled_lookahead_dist_;
       double lookahead_time_;
       double lookahead_dist_;
       double min_lookahead_dist_, max_lookahead_dist_;
-      bool use_velocity_scaled_lookahead_dist_;
 
       //Rotate to heading
       bool use_rotate_to_heading_;
@@ -161,7 +162,7 @@ namespace regulated_pure_pursuit_controller{
 
 
       //Inflation cost scaling (Limit velocity by proximity to obstacles)
-      double use_cost_regulated_linear_velocity_scaling_;
+      bool use_cost_regulated_linear_velocity_scaling_;
       double inflation_cost_scaling_factor_;
       double cost_scaling_dist_;
       double cost_scaling_gain_;
@@ -203,6 +204,7 @@ namespace regulated_pure_pursuit_controller{
       nav_msgs::Path global_plan_;
       bool goal_reached_;
 
+      std::unique_ptr<ddynamic_reconfigure::DDynamicReconfigure> ddr_;
 
   };
 };
