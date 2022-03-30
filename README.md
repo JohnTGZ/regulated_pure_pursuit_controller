@@ -11,7 +11,7 @@ In no way did I write the original algorithm/source code, this originally develo
 
 # Dependencies
 
-1. ddynamic_reconfigure
+1. [ddynamic_reconfigure](https://github.com/pal-robotics/ddynamic_reconfigure)
 
 
 # Deviations from Nav2 Package
