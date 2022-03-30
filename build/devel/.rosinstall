@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /home/john/catkin_ws/src/regulated_pure_pursuit_controller/build/devel/setup.sh

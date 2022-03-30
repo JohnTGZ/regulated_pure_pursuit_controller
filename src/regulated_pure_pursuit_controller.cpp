@@ -70,6 +70,7 @@ namespace regulated_pure_pursuit_controller
 
         //Speed
         nh.param<double>("desired_linear_vel", desired_linear_vel_, 0.5);
+        nh.param<double>("max_angular_vel", max_angular_vel_, 1.5);
         nh.param<double>("min_approach_linear_velocity", min_approach_linear_velocity_, 0.05);
 
         //Regulated linear velocity scaling
@@ -115,6 +116,7 @@ namespace regulated_pure_pursuit_controller
 
         //Speed
         ddr_->registerVariable<double>("desired_linear_vel", &this->desired_linear_vel_, "", 0.0, 10.0);
+        ddr_->registerVariable<double>("max_angular_vel", &this->max_angular_vel_, "", 0.0, 10.0);
         ddr_->registerVariable<double>("min_approach_linear_velocity", &this->min_approach_linear_velocity_, "", 0.0, 10.0);
 
         //Regulated linear velocity scaling
@@ -224,6 +226,8 @@ namespace regulated_pure_pursuit_controller
                 costAtPose(pose.pose.position.x, pose.pose.position.y), linear_vel, sign);
             // Apply curvature to angular velocity after constraining linear velocity
             angular_vel = linear_vel * curvature;
+            //Ensure that angular_vel does not exceed user-defined amount
+            angular_vel = std::clamp(angular_vel, -max_angular_vel_, max_angular_vel_);
         }
 
         //Collision checking on this velocity heading

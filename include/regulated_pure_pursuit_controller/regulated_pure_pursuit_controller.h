@@ -156,10 +156,10 @@ namespace regulated_pure_pursuit_controller{
       //Regulated linear velocity scaling
       bool use_regulated_linear_velocity_scaling_;
       double desired_linear_vel_;
+      double max_angular_vel_;
       double min_approach_linear_velocity_;
       double regulated_linear_scaling_min_radius_;
       double regulated_linear_scaling_min_speed_;
-
 
       //Inflation cost scaling (Limit velocity by proximity to obstacles)
       bool use_cost_regulated_linear_velocity_scaling_;
