@@ -68,6 +68,14 @@ namespace regulated_pure_pursuit_controller
         nh.param<double>("rotate_to_heading_angular_vel", rotate_to_heading_angular_vel_, 1.8);
         nh.param<double>("max_angular_accel", max_angular_accel_, 1.5);
 
+        //Reversing
+        nh.param<bool>("allow_reversing", allow_reversing_, false);
+        if (use_rotate_to_heading_ && allow_reversing_) {
+            ROS_WARN("Disabling reversing. Both use_rotate_to_heading and allow_reversing "
+            "parameter cannot be set to true. By default setting use_rotate_to_heading true");
+            allow_reversing_ = false;
+        }
+
         //Speed
         nh.param<double>("desired_linear_vel", desired_linear_vel_, 0.5);
         nh.param<double>("max_angular_vel", max_angular_vel_, 1.5);
@@ -83,6 +91,11 @@ namespace regulated_pure_pursuit_controller
         nh.param<double>("inflation_cost_scaling_factor", inflation_cost_scaling_factor_, 3.0);
         nh.param<double>("cost_scaling_dist", cost_scaling_dist_, 0.6);
         nh.param<double>("cost_scaling_gain", cost_scaling_gain_, 1.0);
+        if (inflation_cost_scaling_factor_ <= 0.0){
+            ROS_WARN("The value inflation_cost_scaling_factor is incorrectly set, "
+                "it should be >0. Disabling cost regulated linear velocity scaling.");
+            use_cost_regulated_linear_velocity_scaling_ = false;
+        }
 
         //Collision avoidance
         nh.param<double>("max_allowed_time_to_collision_up_to_carrot", max_allowed_time_to_collision_up_to_carrot_, 1.0);
@@ -96,6 +109,8 @@ namespace regulated_pure_pursuit_controller
         double transform_tolerance;
         nh.param<double>("transform_tolerance", transform_tolerance, 0.1);
         transform_tolerance_ = ros::Duration(transform_tolerance);
+
+
 
 
         //Ddynamic Reconfigure
@@ -167,6 +182,9 @@ namespace regulated_pure_pursuit_controller
 
         double linear_vel, angular_vel;
         double sign = 1.0;
+        if (allow_reversing_) {
+            sign = carrot_pose.pose.position.x >= 0.0 ? 1.0 : -1.0;
+        }
 
         //Get current pose of robot
         geometry_msgs::PoseStamped pose; 

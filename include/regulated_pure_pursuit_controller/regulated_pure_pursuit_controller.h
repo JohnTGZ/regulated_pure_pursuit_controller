@@ -153,6 +153,9 @@ namespace regulated_pure_pursuit_controller{
       double rotate_to_heading_angular_vel_;
       double max_angular_accel_;
 
+      //Reversing
+      bool allow_reversing_;
+
       //Regulated linear velocity scaling
       bool use_regulated_linear_velocity_scaling_;
       double desired_linear_vel_;

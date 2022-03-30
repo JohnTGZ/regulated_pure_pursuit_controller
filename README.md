@@ -4,6 +4,9 @@ This is a ROS1 port of the [ROS2 Local Planner plugin](https://navigation.ros.or
 
 The Parameters are the same, please refer to the [Nav2 Regulated Pure Pursuit Controller](https://github.com/ros-planning/navigation2/tree/main/nav2_regulated_pure_pursuit_controller) for more details
 
+# Disclaimer
+In no way did I write the original algorithm/source code, this originally developed by [Shrijit Singh](https://www.linkedin.com/in/shrijitsingh99/) and [Steve Macenski](https://www.linkedin.com/in/steve-macenski-41a985101/) while at Samsung Research as part of the Nav2 working group.
+
 ---
 
 # Dependencies
@@ -30,6 +33,8 @@ ROS2 uses `setPlan(const nav_msgs::msg::Path & path)`, so we have to convert the
 ## nav2_util::geometry_utils
 
 The nav2_util library (really useful btw) is not available in ROS1, so we have kindly borrowed it in the form of "include/regulated_pure_pursuit_controller/geometry_utils.h", thanks Intel!
+
+## Added a parameter `max_angular_vel` to clamp the output angular velocity to a user-defined value.
 
 # TODO
 
