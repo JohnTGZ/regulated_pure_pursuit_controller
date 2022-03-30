@@ -38,5 +38,4 @@ The nav2_util library (really useful btw) is not available in ROS1, so we have k
 
 # TODO
 
-1. Add ability to reverse
 2. Add support for move_base_flex
