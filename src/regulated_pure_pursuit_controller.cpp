@@ -181,10 +181,6 @@ namespace regulated_pure_pursuit_controller
         goal_reached_ = false;
 
         double linear_vel, angular_vel;
-        double sign = 1.0;
-        if (allow_reversing_) {
-            sign = carrot_pose.pose.position.x >= 0.0 ? 1.0 : -1.0;
-        }
 
         //Get current pose of robot
         geometry_msgs::PoseStamped pose; 
@@ -207,6 +203,7 @@ namespace regulated_pure_pursuit_controller
         geometry_msgs::PoseStamped carrot_pose = getLookAheadPoint(lookahead_dist, transformed_plan);
         carrot_pub_.publish(createCarrotMsg(carrot_pose));
 
+
         //Carrot distance squared
         const double carrot_dist2 =
             (carrot_pose.pose.position.x * carrot_pose.pose.position.x) +
@@ -218,9 +215,13 @@ namespace regulated_pure_pursuit_controller
             curvature = 2.0 * carrot_pose.pose.position.y / carrot_dist2;
         }
 
+        double sign = 1.0;
+        if (allow_reversing_) {
+            sign = carrot_pose.pose.position.x >= 0.0 ? 1.0 : -1.0;
+        }
+
         //check if global plan is reached
         checkGoalReached(pose);
-
 
         linear_vel = desired_linear_vel_;
         // Make sure we're in compliance with basic constraints
