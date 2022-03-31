@@ -36,9 +36,19 @@
 
 #include <regulated_pure_pursuit_controller/geometry_utils.h>
 
+#include <mbf_costmap_core/costmap_controller.h>
+#include <mbf_msgs/ExePathResult.h>
+
+#include <logging_tools/csv_manipulator.h>
+
+#define DEBUG_TIMER
+
+#ifdef DEBUG_TIMER
+#include <boost/timer/timer.hpp>
+#endif
 
 namespace regulated_pure_pursuit_controller{
-  class RegulatedPurePursuitController : public nav_core::BaseLocalPlanner{
+  class RegulatedPurePursuitController : public nav_core::BaseLocalPlanner, public mbf_costmap_core::CostmapController{
 
   public:
 
@@ -68,13 +78,56 @@ namespace regulated_pure_pursuit_controller{
 
     bool computeVelocityCommands(geometry_msgs::Twist& cmd_vel);
 
+    uint32_t computeVelocityCommands(const geometry_msgs::PoseStamped& pose,
+                                                        const geometry_msgs::TwistStamped& velocity,
+                                                        geometry_msgs::TwistStamped &cmd_vel,
+                                                        std::string &message);
+
+    bool pruneGlobalPlan(const tf2_ros::Buffer& tf, const geometry_msgs::PoseStamped& global_pose, std::vector<geometry_msgs::PoseStamped>& global_plan, double dist_behind_robot);
+
+    /**
+        * @brief  Transforms the global plan of the robot from the planner frame to the local frame (modified).
+        * 
+        * The method replaces transformGlobalPlan as defined in base_local_planner/goal_functions.h 
+        * such that the index of the current goal pose is returned as well as 
+        * the transformation between the global plan and the planning frame.
+        * @param tf A reference to a tf buffer
+        * @param global_plan The plan to be transformed
+        * @param global_pose The global pose of the robot
+        * @param costmap A reference to the costmap being used so the window size for transforming can be computed
+        * @param global_frame The frame to transform the plan to
+        * @param max_plan_length Specify maximum length (cumulative Euclidean distances) of the transformed plan [if <=0: disabled; the length is also bounded by the local costmap size!]
+        * @param[out] transformed_plan Populated with the transformed plan
+        * @param[out] current_goal_idx Index of the current (local) goal pose in the global plan
+        * @param[out] tf_plan_to_global Transformation between the global plan and the global planning frame
+        * @return \c true if the global plan is transformed, \c false otherwise
+        */
+    bool transformGlobalPlan(
+        const tf2_ros::Buffer& tf, const std::vector<geometry_msgs::PoseStamped>& global_plan,
+        const geometry_msgs::PoseStamped& global_pose, const costmap_2d::Costmap2D& costmap, const std::string& global_frame, double max_plan_length,
+        std::vector<geometry_msgs::PoseStamped>& transformed_plan, int* current_goal_idx, geometry_msgs::TransformStamped* tf_plan_to_global);
+
     bool isGoalReached();
 
-    bool checkGoalReached();
+    /**
+      * @brief Dummy version to satisfy MBF API
+      */
+    bool isGoalReached(double xy_tolerance, double yaw_tolerance) { 
+      return isGoalReached(); 
+    }
 
     const bool& isInitialized(){
       return initialized_;
     }
+
+    /**
+      * @brief Requests the planner to cancel, e.g. if it takes too much time
+      * @remark New on MBF API
+      * @return True if a cancel has been successfully requested, false if not implemented.
+      */
+    bool cancel() { 
+      return false; 
+    };
 
     /**
      * Calculation methods
@@ -95,7 +148,7 @@ namespace regulated_pure_pursuit_controller{
         const double & pose_cost, double & linear_vel, double & sign);
 
     geometry_msgs::PoseStamped getLookAheadPoint(
-      const double & lookahead_dist, const nav_msgs::Path & transformed_plan);
+      const double & lookahead_dist, const std::vector<geometry_msgs::PoseStamped>& transformed_plan);
     
     double getLookAheadDistance( const geometry_msgs::Twist & speed);
 
@@ -113,13 +166,6 @@ namespace regulated_pure_pursuit_controller{
         const geometry_msgs::PoseStamped & robot_pose,
         const double & linear_vel, const double & angular_vel,
         const double & carrot_dist);
-
-    /**
-     * @brief Check if goal is reached by pose within a tolerance of goal_dist_tol_
-     * 
-     * @param pose Pose to check against
-     */
-    void checkGoalReached(geometry_msgs::PoseStamped& pose);
 
     /**
      * Helper methods
@@ -155,6 +201,7 @@ namespace regulated_pure_pursuit_controller{
       std::string odom_topic_{"odom"};
 
       double max_robot_pose_search_dist_;
+      double global_plan_prune_distance_{1.0};
 
       //Lookahead
       bool use_velocity_scaled_lookahead_dist_;
@@ -201,7 +248,6 @@ namespace regulated_pure_pursuit_controller{
       costmap_2d::Costmap2D* costmap_;
       costmap_2d::Costmap2DROS* costmap_ros_;
       base_local_planner::CostmapModel* costmap_model_; //For retrieving robot footprint cost
-      geometry_msgs::PoseStamped current_pose_;
       base_local_planner::OdometryHelperRos odom_helper_;
 
       // for visualisation, publishers of global and local plan
@@ -213,18 +259,44 @@ namespace regulated_pure_pursuit_controller{
       ros::Publisher carrot_pub_;
       ros::Publisher carrot_arc_pub_;
 
-      ros::Publisher local_cmd_vel_pub_;
+
+      /**
+       * Configs
+       */
+      std::string global_frame_{"map"};
+      std::string robot_base_frame_{"base_footprint"};
 
       /**
        * Run-time variables
        */
-      // std::vector<geometry_msgs::PoseStamped> global_plan_;
-      nav_msgs::Path global_plan_;
+      std::vector<geometry_msgs::PoseStamped> global_plan_; //Stores the current global plan
       bool goal_reached_;
 
       std::unique_ptr<ddynamic_reconfigure::DDynamicReconfigure> ddr_;
+
+      
+      /**
+       * debug profiling 
+       */
+
+      std::vector<std::string> addCheckpoint(double &wall, 
+                                            double &user, 
+                                            double &system, 
+                                            std::string cp_name);
+      
+      boost::timer::cpu_timer* cpu_timer_;
+      std::unique_ptr<CSVManipulator> csv_writer_;
+      std::vector<std::vector<std::string>> timer_log_csv_;
+
+      boost::timer::cpu_timer* cpu_timer_tgp_; //cpu timer for transformGlobalPlan
+      std::unique_ptr<CSVManipulator> csv_writer_tgp_;
+      std::vector<std::vector<std::string>> timer_log_csv_tgp_;
 
   };
 };
 
 #endif //REGULATED_PURE_PURSUIT_CONTROLLER_H
+
+
+
+

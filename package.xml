@@ -26,8 +26,19 @@
   <run_depend>pluginlib</run_depend>
   <run_depend>ddynamic_reconfigure</run_depend>
 
-  
 
-  <export><nav_core plugin="${prefix}/regulated_pure_pursuit_controller.xml"/></export>
+  <build_depend>logging_tools</build_depend>
+  <run_depend>logging_tools</run_depend>
+
+  <build_depend>mbf_costmap_core</build_depend>
+  <run_depend>mbf_costmap_core</run_depend>
+  
+  <build_depend>mbf_msgs</build_depend>
+  <run_depend>mbf_msgs</run_depend>
+
+  <export>
+    <nav_core plugin="${prefix}/regulated_pure_pursuit_controller.xml"/>
+    <mbf_costmap_core plugin="${prefix}/regulated_pure_pursuit_controller.xml" />
+  </export>
 
 </package>

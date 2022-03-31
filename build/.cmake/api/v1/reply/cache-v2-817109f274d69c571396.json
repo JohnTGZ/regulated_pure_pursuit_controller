@@ -26,6 +26,46 @@
 			"value" : "ON"
 		},
 		{
+			"name" : "Boost_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "The directory containing a CMake configuration file for Boost."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/usr/lib/x86_64-linux-gnu/cmake/Boost-1.71.0"
+		},
+		{
+			"name" : "Boost_INCLUDE_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a file."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/usr/include"
+		},
+		{
+			"name" : "Boost_TIMER_LIBRARY_RELEASE",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "STRING",
+			"value" : "/usr/lib/x86_64-linux-gnu/libboost_timer.so.1.71.0"
+		},
+		{
 			"name" : "CATKIN_ENABLE_TESTING",
 			"properties" : 
 			[
@@ -1618,6 +1658,18 @@
 			"value" : "/usr/lib/python3/dist-packages/em.py"
 		},
 		{
+			"name" : "FIND_PACKAGE_MESSAGE_DETAILS_Boost",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Details about finding Boost"
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "[/usr/lib/x86_64-linux-gnu/cmake/Boost-1.71.0/BoostConfig.cmake][cfound components: timer ][v1.71.0(1.40)]"
+		},
+		{
 			"name" : "FIND_PACKAGE_MESSAGE_DETAILS_PY_em",
 			"properties" : 
 			[
@@ -2110,6 +2162,54 @@
 			"value" : "/opt/ros/noetic/share/actionlib_msgs/cmake"
 		},
 		{
+			"name" : "boost_chrono_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "The directory containing a CMake configuration file for boost_chrono."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/usr/lib/x86_64-linux-gnu/cmake/boost_chrono-1.71.0"
+		},
+		{
+			"name" : "boost_headers_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "The directory containing a CMake configuration file for boost_headers."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/usr/lib/x86_64-linux-gnu/cmake/boost_headers-1.71.0"
+		},
+		{
+			"name" : "boost_timer_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "The directory containing a CMake configuration file for boost_timer."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/usr/lib/x86_64-linux-gnu/cmake/boost_timer-1.71.0"
+		},
+		{
 			"name" : "catkin_DIR",
 			"properties" : 
 			[
@@ -2168,6 +2268,18 @@
 			],
 			"type" : "PATH",
 			"value" : "/opt/ros/noetic/share/cpp_common/cmake"
+		},
+		{
+			"name" : "csv_manipulator_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "The directory containing a CMake configuration file for csv_manipulator."
+				}
+			],
+			"type" : "PATH",
+			"value" : "csv_manipulator_DIR-NOTFOUND"
 		},
 		{
 			"name" : "ddynamic_reconfigure_DIR",
@@ -2503,7 +2615,19 @@
 				}
 			],
 			"type" : "FILEPATH",
-			"value" : "/opt/ros/noetic/lib/libddynamic_reconfigure.so"
+			"value" : "/home/john/catkin_ws/devel/.private/logging_tools/lib/liblogging_tools.so"
+		},
+		{
+			"name" : "logging_tools_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "The directory containing a CMake configuration file for logging_tools."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/home/john/catkin_ws/devel/share/logging_tools/cmake"
 		},
 		{
 			"name" : "map_msgs_DIR",
@@ -2516,6 +2640,54 @@
 			],
 			"type" : "PATH",
 			"value" : "/opt/ros/noetic/share/map_msgs/cmake"
+		},
+		{
+			"name" : "mbf_abstract_core_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "The directory containing a CMake configuration file for mbf_abstract_core."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/home/john/catkin_ws/devel/share/mbf_abstract_core/cmake"
+		},
+		{
+			"name" : "mbf_costmap_core_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "The directory containing a CMake configuration file for mbf_costmap_core."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/home/john/catkin_ws/devel/share/mbf_costmap_core/cmake"
+		},
+		{
+			"name" : "mbf_msgs_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "The directory containing a CMake configuration file for mbf_msgs."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/home/john/catkin_ws/devel/share/mbf_msgs/cmake"
+		},
+		{
+			"name" : "mbf_utility_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "The directory containing a CMake configuration file for mbf_utility."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/home/john/catkin_ws/devel/share/mbf_utility/cmake"
 		},
 		{
 			"name" : "message_filters_DIR",
@@ -2611,7 +2783,7 @@
 				}
 			],
 			"type" : "STATIC",
-			"value" : "general;/opt/ros/noetic/lib/libcostmap_2d.so;general;/opt/ros/noetic/lib/liblayers.so;general;/opt/ros/noetic/lib/liblaser_geometry.so;general;/opt/ros/noetic/lib/libvoxel_grid.so;general;/opt/ros/noetic/lib/libclass_loader.so;general;/usr/lib/x86_64-linux-gnu/libPocoFoundation.so;general;/usr/lib/x86_64-linux-gnu/libdl.so;general;/opt/ros/noetic/lib/libroslib.so;general;/opt/ros/noetic/lib/librospack.so;general;/usr/lib/x86_64-linux-gnu/libpython3.8.so;general;/usr/lib/x86_64-linux-gnu/libboost_program_options.so.1.71.0;general;/usr/lib/x86_64-linux-gnu/libtinyxml2.so;general;/opt/ros/noetic/lib/libddynamic_reconfigure.so;general;/opt/ros/noetic/lib/libdynamic_reconfigure_config_init_mutex.so;general;/opt/ros/noetic/lib/libtf.so;general;/opt/ros/noetic/lib/libtf2_ros.so;general;/opt/ros/noetic/lib/libactionlib.so;general;/opt/ros/noetic/lib/libmessage_filters.so;general;/opt/ros/noetic/lib/libroscpp.so;general;/usr/lib/x86_64-linux-gnu/libpthread.so;general;/usr/lib/x86_64-linux-gnu/libboost_chrono.so.1.71.0;general;/usr/lib/x86_64-linux-gnu/libboost_filesystem.so.1.71.0;general;/opt/ros/noetic/lib/libxmlrpcpp.so;general;/opt/ros/noetic/lib/libtf2.so;general;/opt/ros/noetic/lib/libroscpp_serialization.so;general;/opt/ros/noetic/lib/librosconsole.so;general;/opt/ros/noetic/lib/librosconsole_log4cxx.so;general;/opt/ros/noetic/lib/librosconsole_backend_interface.so;general;/usr/lib/x86_64-linux-gnu/liblog4cxx.so;general;/usr/lib/x86_64-linux-gnu/libboost_regex.so.1.71.0;general;/opt/ros/noetic/lib/librostime.so;general;/usr/lib/x86_64-linux-gnu/libboost_date_time.so.1.71.0;general;/opt/ros/noetic/lib/libcpp_common.so;general;/usr/lib/x86_64-linux-gnu/libboost_system.so.1.71.0;general;/usr/lib/x86_64-linux-gnu/libboost_thread.so.1.71.0;general;/usr/lib/x86_64-linux-gnu/libconsole_bridge.so.0.4;"
+			"value" : "general;/opt/ros/noetic/lib/libddynamic_reconfigure.so;general;/home/john/catkin_ws/devel/.private/mbf_utility/lib/libmbf_utility.so;general;/usr/lib/liborocos-kdl.so;general;/usr/lib/liborocos-kdl.so;general;/opt/ros/noetic/lib/libcostmap_2d.so;general;/opt/ros/noetic/lib/liblayers.so;general;/opt/ros/noetic/lib/libdynamic_reconfigure_config_init_mutex.so;general;/opt/ros/noetic/lib/liblaser_geometry.so;general;/opt/ros/noetic/lib/libtf.so;general;/opt/ros/noetic/lib/libclass_loader.so;general;/usr/lib/x86_64-linux-gnu/libPocoFoundation.so;general;/usr/lib/x86_64-linux-gnu/libdl.so;general;/opt/ros/noetic/lib/libroslib.so;general;/opt/ros/noetic/lib/librospack.so;general;/usr/lib/x86_64-linux-gnu/libpython3.8.so;general;/usr/lib/x86_64-linux-gnu/libboost_program_options.so.1.71.0;general;/usr/lib/x86_64-linux-gnu/libtinyxml2.so;general;/opt/ros/noetic/lib/libtf2_ros.so;general;/opt/ros/noetic/lib/libactionlib.so;general;/opt/ros/noetic/lib/libmessage_filters.so;general;/opt/ros/noetic/lib/libtf2.so;general;/opt/ros/noetic/lib/libvoxel_grid.so;general;/home/john/catkin_ws/devel/.private/logging_tools/lib/liblogging_tools.so;general;/opt/ros/noetic/lib/libroscpp.so;general;/usr/lib/x86_64-linux-gnu/libpthread.so;general;/usr/lib/x86_64-linux-gnu/libboost_chrono.so.1.71.0;general;/usr/lib/x86_64-linux-gnu/libboost_filesystem.so.1.71.0;general;/opt/ros/noetic/lib/librosconsole.so;general;/opt/ros/noetic/lib/librosconsole_log4cxx.so;general;/opt/ros/noetic/lib/librosconsole_backend_interface.so;general;/usr/lib/x86_64-linux-gnu/liblog4cxx.so;general;/usr/lib/x86_64-linux-gnu/libboost_regex.so.1.71.0;general;/opt/ros/noetic/lib/libroscpp_serialization.so;general;/opt/ros/noetic/lib/libxmlrpcpp.so;general;/opt/ros/noetic/lib/librostime.so;general;/usr/lib/x86_64-linux-gnu/libboost_date_time.so.1.71.0;general;/opt/ros/noetic/lib/libcpp_common.so;general;/usr/lib/x86_64-linux-gnu/libboost_system.so.1.71.0;general;/usr/lib/x86_64-linux-gnu/libboost_thread.so.1.71.0;general;/usr/lib/x86_64-linux-gnu/libconsole_bridge.so.0.4;general;Boost::timer;"
 		},
 		{
 			"name" : "regulated_pure_pursuit_controller_SOURCE_DIR",
@@ -2780,6 +2952,18 @@
 			],
 			"type" : "PATH",
 			"value" : "/opt/ros/noetic/share/tf2/cmake"
+		},
+		{
+			"name" : "tf2_geometry_msgs_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "The directory containing a CMake configuration file for tf2_geometry_msgs."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/opt/ros/noetic/share/tf2_geometry_msgs/cmake"
 		},
 		{
 			"name" : "tf2_msgs_DIR",

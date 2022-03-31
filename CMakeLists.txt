@@ -15,11 +15,21 @@ find_package(catkin REQUIRED COMPONENTS
         pluginlib
         ddynamic_reconfigure
         tf
+
+        mbf_msgs
+        mbf_costmap_core
+        logging_tools
 )
+
+find_package(
+  Boost 1.40 COMPONENTS
+  timer
+  REQUIRED)
 
 include_directories(
         include
         ${catkin_INCLUDE_DIRS}
+        ${BOOST_INCLUDE_DIR}
 )
 
 link_directories(${catkin_LIBRARY_DIRS})
@@ -35,7 +45,9 @@ catkin_package(
 add_library(regulated_pure_pursuit_controller
         src/regulated_pure_pursuit_controller.cpp)
 
-target_link_libraries(regulated_pure_pursuit_controller ${catkin_LIBRARIES})
+target_link_libraries(regulated_pure_pursuit_controller 
+                        ${catkin_LIBRARIES}
+                        ${Boost_LIBRARIES} )
 add_dependencies(regulated_pure_pursuit_controller nav_msgs_gencpp)
 
 install(TARGETS regulated_pure_pursuit_controller

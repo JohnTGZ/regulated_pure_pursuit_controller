@@ -14,6 +14,7 @@
 			"_install",
 			"install",
 			"link_directories",
+			"target_link_libraries",
 			"add_compile_options",
 			"add_definitions",
 			"include",
@@ -40,13 +41,13 @@
 			{
 				"command" : 0,
 				"file" : 0,
-				"line" : 35,
+				"line" : 45,
 				"parent" : 0
 			},
 			{
 				"command" : 2,
 				"file" : 0,
-				"line" : 41,
+				"line" : 53,
 				"parent" : 0
 			},
 			{
@@ -58,93 +59,99 @@
 			{
 				"command" : 3,
 				"file" : 0,
-				"line" : 25,
+				"line" : 35,
 				"parent" : 0
 			},
 			{
 				"command" : 4,
 				"file" : 0,
+				"line" : 48,
+				"parent" : 0
+			},
+			{
+				"command" : 5,
+				"file" : 0,
 				"line" : 4,
 				"parent" : 0
 			},
 			{
-				"command" : 7,
+				"command" : 8,
 				"file" : 0,
 				"line" : 9,
 				"parent" : 0
 			},
 			{
 				"file" : 5,
-				"parent" : 6
-			},
-			{
-				"command" : 7,
-				"file" : 5,
-				"line" : 76,
 				"parent" : 7
-			},
-			{
-				"file" : 4,
-				"parent" : 8
-			},
-			{
-				"command" : 7,
-				"file" : 4,
-				"line" : 197,
-				"parent" : 9
-			},
-			{
-				"file" : 3,
-				"parent" : 10
-			},
-			{
-				"command" : 6,
-				"file" : 3,
-				"line" : 222,
-				"parent" : 11
-			},
-			{
-				"file" : 2,
-				"parent" : 12
-			},
-			{
-				"command" : 5,
-				"file" : 2,
-				"line" : 12,
-				"parent" : 13
-			},
-			{
-				"command" : 6,
-				"file" : 5,
-				"line" : 20,
-				"parent" : 7
-			},
-			{
-				"file" : 7,
-				"parent" : 15
 			},
 			{
 				"command" : 8,
-				"file" : 7,
-				"line" : 174,
-				"parent" : 16
+				"file" : 5,
+				"line" : 76,
+				"parent" : 8
 			},
 			{
-				"command" : 5,
-				"file" : 6,
-				"line" : 18,
-				"parent" : 17
+				"file" : 4,
+				"parent" : 9
 			},
 			{
-				"command" : 5,
+				"command" : 8,
+				"file" : 4,
+				"line" : 197,
+				"parent" : 10
+			},
+			{
+				"file" : 3,
+				"parent" : 11
+			},
+			{
+				"command" : 7,
+				"file" : 3,
+				"line" : 222,
+				"parent" : 12
+			},
+			{
 				"file" : 2,
-				"line" : 8,
 				"parent" : 13
 			},
 			{
-				"command" : 9,
-				"file" : 0,
+				"command" : 6,
+				"file" : 2,
+				"line" : 12,
+				"parent" : 14
+			},
+			{
+				"command" : 7,
+				"file" : 5,
 				"line" : 20,
+				"parent" : 8
+			},
+			{
+				"file" : 7,
+				"parent" : 16
+			},
+			{
+				"command" : 9,
+				"file" : 7,
+				"line" : 174,
+				"parent" : 17
+			},
+			{
+				"command" : 6,
+				"file" : 6,
+				"line" : 18,
+				"parent" : 18
+			},
+			{
+				"command" : 6,
+				"file" : 2,
+				"line" : 8,
+				"parent" : 14
+			},
+			{
+				"command" : 10,
+				"file" : 0,
+				"line" : 29,
 				"parent" : 0
 			}
 		]
@@ -158,22 +165,34 @@
 					"fragment" : "-g -fPIC  "
 				},
 				{
-					"backtrace" : 5,
+					"backtrace" : 6,
 					"fragment" : "-std=c++17"
 				}
 			],
 			"defines" : 
 			[
 				{
-					"backtrace" : 14,
+					"backtrace" : 5,
+					"define" : "BOOST_ALL_NO_LIB"
+				},
+				{
+					"backtrace" : 5,
+					"define" : "BOOST_CHRONO_DYN_LINK"
+				},
+				{
+					"backtrace" : 5,
+					"define" : "BOOST_TIMER_DYN_LINK"
+				},
+				{
+					"backtrace" : 15,
 					"define" : "ROSCONSOLE_BACKEND_LOG4CXX"
 				},
 				{
-					"backtrace" : 18,
+					"backtrace" : 19,
 					"define" : "ROS_BUILD_SHARED_LIBS=1"
 				},
 				{
-					"backtrace" : 19,
+					"backtrace" : 20,
 					"define" : "ROS_PACKAGE_NAME=\"regulated_pure_pursuit_controller\""
 				},
 				{
@@ -183,23 +202,43 @@
 			"includes" : 
 			[
 				{
-					"backtrace" : 20,
+					"backtrace" : 21,
 					"path" : "/home/john/catkin_ws/src/regulated_pure_pursuit_controller/include"
 				},
 				{
-					"backtrace" : 20,
+					"backtrace" : 21,
+					"path" : "/home/john/catkin_ws/devel/.private/mbf_msgs/include"
+				},
+				{
+					"backtrace" : 21,
+					"path" : "/home/john/catkin_ws/src/flexa-robot/flexa_utils/logging_tools/include"
+				},
+				{
+					"backtrace" : 21,
+					"path" : "/home/john/catkin_ws/src/flexa-robot/flexa_navigation/move_base_flex/mbf_abstract_core/include"
+				},
+				{
+					"backtrace" : 21,
+					"path" : "/home/john/catkin_ws/src/flexa-robot/flexa_navigation/move_base_flex/mbf_utility/include"
+				},
+				{
+					"backtrace" : 21,
 					"path" : "/home/john/catkin_ws/src/flexa-robot/flexa_navigation/navigation/nav_core/include"
 				},
 				{
-					"backtrace" : 20,
+					"backtrace" : 21,
+					"path" : "/home/john/catkin_ws/src/flexa-robot/flexa_navigation/move_base_flex/mbf_costmap_core/include"
+				},
+				{
+					"backtrace" : 21,
 					"path" : "/opt/ros/noetic/include"
 				},
 				{
-					"backtrace" : 20,
+					"backtrace" : 21,
 					"path" : "/opt/ros/noetic/share/xmlrpcpp/cmake/../../../include/xmlrpcpp"
 				},
 				{
-					"backtrace" : 20,
+					"backtrace" : 21,
 					"path" : "/usr/include/eigen3"
 				}
 			],
@@ -239,11 +278,37 @@
 			},
 			{
 				"backtrace" : 4,
+				"fragment" : "-L/home/john/catkin_ws/devel/.private/mbf_utility/lib",
+				"role" : "libraryPath"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "-L/home/john/catkin_ws/devel/.private/logging_tools/lib",
+				"role" : "libraryPath"
+			},
+			{
+				"backtrace" : 4,
 				"fragment" : "-L/opt/ros/noetic/lib",
 				"role" : "libraryPath"
 			},
 			{
-				"fragment" : "-Wl,-rpath,/opt/ros/noetic/lib:",
+				"fragment" : "-Wl,-rpath,/home/john/catkin_ws/devel/.private/mbf_utility/lib:/home/john/catkin_ws/devel/.private/logging_tools/lib:/opt/ros/noetic/lib:",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "/opt/ros/noetic/lib/libddynamic_reconfigure.so",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "/home/john/catkin_ws/devel/.private/mbf_utility/lib/libmbf_utility.so",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "-lorocos-kdl",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "-lorocos-kdl",
 				"role" : "libraries"
 			},
 			{
@@ -255,11 +320,15 @@
 				"role" : "libraries"
 			},
 			{
+				"fragment" : "/opt/ros/noetic/lib/libdynamic_reconfigure_config_init_mutex.so",
+				"role" : "libraries"
+			},
+			{
 				"fragment" : "/opt/ros/noetic/lib/liblaser_geometry.so",
 				"role" : "libraries"
 			},
 			{
-				"fragment" : "/opt/ros/noetic/lib/libvoxel_grid.so",
+				"fragment" : "/opt/ros/noetic/lib/libtf.so",
 				"role" : "libraries"
 			},
 			{
@@ -295,18 +364,6 @@
 				"role" : "libraries"
 			},
 			{
-				"fragment" : "/opt/ros/noetic/lib/libddynamic_reconfigure.so",
-				"role" : "libraries"
-			},
-			{
-				"fragment" : "/opt/ros/noetic/lib/libdynamic_reconfigure_config_init_mutex.so",
-				"role" : "libraries"
-			},
-			{
-				"fragment" : "/opt/ros/noetic/lib/libtf.so",
-				"role" : "libraries"
-			},
-			{
 				"fragment" : "/opt/ros/noetic/lib/libtf2_ros.so",
 				"role" : "libraries"
 			},
@@ -316,6 +373,18 @@
 			},
 			{
 				"fragment" : "/opt/ros/noetic/lib/libmessage_filters.so",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "/opt/ros/noetic/lib/libtf2.so",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "/opt/ros/noetic/lib/libvoxel_grid.so",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "/home/john/catkin_ws/devel/.private/logging_tools/lib/liblogging_tools.so",
 				"role" : "libraries"
 			},
 			{
@@ -332,18 +401,6 @@
 			},
 			{
 				"fragment" : "/usr/lib/x86_64-linux-gnu/libboost_filesystem.so.1.71.0",
-				"role" : "libraries"
-			},
-			{
-				"fragment" : "/opt/ros/noetic/lib/libxmlrpcpp.so",
-				"role" : "libraries"
-			},
-			{
-				"fragment" : "/opt/ros/noetic/lib/libtf2.so",
-				"role" : "libraries"
-			},
-			{
-				"fragment" : "/opt/ros/noetic/lib/libroscpp_serialization.so",
 				"role" : "libraries"
 			},
 			{
@@ -364,6 +421,14 @@
 			},
 			{
 				"fragment" : "/usr/lib/x86_64-linux-gnu/libboost_regex.so.1.71.0",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "/opt/ros/noetic/lib/libroscpp_serialization.so",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "/opt/ros/noetic/lib/libxmlrpcpp.so",
 				"role" : "libraries"
 			},
 			{
@@ -388,6 +453,15 @@
 			},
 			{
 				"fragment" : "/usr/lib/x86_64-linux-gnu/libconsole_bridge.so.0.4",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 5,
+				"fragment" : "/usr/lib/x86_64-linux-gnu/libboost_timer.so.1.71.0",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "/usr/lib/x86_64-linux-gnu/libboost_chrono.so.1.71.0",
 				"role" : "libraries"
 			}
 		],

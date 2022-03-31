@@ -10,6 +10,9 @@ set(CMAKE_CXX_COMPILER_ID "GNU")
 
 # Preprocessor definitions for this target.
 set(CMAKE_TARGET_DEFINITIONS_CXX
+  "BOOST_ALL_NO_LIB"
+  "BOOST_CHRONO_DYN_LINK"
+  "BOOST_TIMER_DYN_LINK"
   "ROSCONSOLE_BACKEND_LOG4CXX"
   "ROS_BUILD_SHARED_LIBS=1"
   "ROS_PACKAGE_NAME=\"regulated_pure_pursuit_controller\""
@@ -19,7 +22,12 @@ set(CMAKE_TARGET_DEFINITIONS_CXX
 # The include file search paths:
 set(CMAKE_CXX_TARGET_INCLUDE_PATH
   "../include"
+  "/home/john/catkin_ws/devel/.private/mbf_msgs/include"
+  "/home/john/catkin_ws/src/flexa-robot/flexa_utils/logging_tools/include"
+  "/home/john/catkin_ws/src/flexa-robot/flexa_navigation/move_base_flex/mbf_abstract_core/include"
+  "/home/john/catkin_ws/src/flexa-robot/flexa_navigation/move_base_flex/mbf_utility/include"
   "/home/john/catkin_ws/src/flexa-robot/flexa_navigation/navigation/nav_core/include"
+  "/home/john/catkin_ws/src/flexa-robot/flexa_navigation/move_base_flex/mbf_costmap_core/include"
   "/opt/ros/noetic/include"
   "/opt/ros/noetic/share/xmlrpcpp/cmake/../../../include/xmlrpcpp"
   "/usr/include/eigen3"
