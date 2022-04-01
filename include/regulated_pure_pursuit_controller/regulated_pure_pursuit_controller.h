@@ -105,7 +105,7 @@ namespace regulated_pure_pursuit_controller{
     bool transformGlobalPlan(
         const tf2_ros::Buffer& tf, const std::vector<geometry_msgs::PoseStamped>& global_plan,
         const geometry_msgs::PoseStamped& global_pose, const costmap_2d::Costmap2D& costmap, const std::string& global_frame, double max_plan_length,
-        std::vector<geometry_msgs::PoseStamped>& transformed_plan, int* current_goal_idx, geometry_msgs::TransformStamped* tf_plan_to_global);
+        std::vector<geometry_msgs::PoseStamped>& transformed_plan, int* current_goal_idx, geometry_msgs::TransformStamped* tf_plan_to_robot_frame);
 
     bool isGoalReached();
 
@@ -279,19 +279,41 @@ namespace regulated_pure_pursuit_controller{
        * debug profiling 
        */
 
-      std::vector<std::string> addCheckpoint(double &wall, 
-                                            double &user, 
-                                            double &system, 
-                                            std::string cp_name);
       
-      boost::timer::cpu_timer* cpu_timer_;
-      std::unique_ptr<CSVManipulator> csv_writer_;
-      std::vector<std::vector<std::string>> timer_log_csv_;
+      #ifdef DEBUG_TIMER
+        std::vector<std::string> addCheckpoint(double &wall, 
+                                              double &user, 
+                                              double &system, 
+                                              std::string cp_name){
 
-      boost::timer::cpu_timer* cpu_timer_tgp_; //cpu timer for transformGlobalPlan
-      std::unique_ptr<CSVManipulator> csv_writer_tgp_;
-      std::vector<std::vector<std::string>> timer_log_csv_tgp_;
+          std::vector<std::string> timer_row;
+          timer_row.push_back(cp_name);
+          timer_row.push_back(std::to_string(cpu_timer_->elapsed().wall - wall));
+          double user_cp = cpu_timer_->elapsed().user - user;
+          double system_cp = cpu_timer_->elapsed().system - system;
+          timer_row.push_back(std::to_string(user_cp));
+          timer_row.push_back(std::to_string(system_cp));
+          timer_row.push_back(std::to_string(user_cp + system_cp));
 
+          wall = cpu_timer_->elapsed().wall;
+          user = cpu_timer_->elapsed().user;
+          system = cpu_timer_->elapsed().system;
+
+          return timer_row;
+
+      }
+
+        //Timer for Compute velocity commands
+        boost::timer::cpu_timer* cpu_timer_;
+        std::unique_ptr<CSVManipulator> csv_writer_;
+        std::vector<std::vector<std::string>> timer_log_csv_;
+
+        //Timer for transform global plan
+        boost::timer::cpu_timer* cpu_timer_tgp_; //cpu timer for transformGlobalPlan
+        std::unique_ptr<CSVManipulator> csv_writer_tgp_;
+        std::vector<std::vector<std::string>> timer_log_csv_tgp_;
+
+      #endif
   };
 };
 

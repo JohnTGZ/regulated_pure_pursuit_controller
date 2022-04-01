@@ -30,12 +30,9 @@ In the ported version, we have to use the ROS1 `isGoalReached()` method to check
 
 ROS2 uses `setPlan(const nav_msgs::msg::Path & path)`, so we have to convert the global plan to a nav_msgs::path message type for further processing.
 
-## nav2_util::geometry_utils
+## transformGlobalPlan
 
-The nav2_util library (really useful btw) is not available in ROS1, so we have kindly borrowed it in the form of "include/regulated_pure_pursuit_controller/geometry_utils.h", thanks Intel!
+The original transformGlobalPlan from the Nav2 package when ported directly faced issues with extrapolation into the future when looking up the transform between `/odom` and `/map` frame. Therefore, the transformGlobalPlan method from TEB Local Planner has been adapted for use here as it provides a more reliable and faster way of transforming the global plan into the base frame of the robot.
+
 
 ## Added a parameter `max_angular_vel` to clamp the output angular velocity to a user-defined value.
-
-# TODO
-
-2. Add support for move_base_flex

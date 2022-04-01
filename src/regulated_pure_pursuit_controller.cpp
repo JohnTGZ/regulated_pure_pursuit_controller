@@ -18,8 +18,7 @@
 // pluginlib macros (defines, ...)
 #include <pluginlib/class_list_macros.h>
 
-#define DEBUG_TIMER
-
+// #define DEBUG_TIMER
 
 // PLUGINLIB_DECLARE_CLASS has been changed to PLUGINLIB_EXPORT_CLASS in ROS Noetic
 // Changing all tf::TransformListener* to tf2_ros::Buffer*
@@ -253,20 +252,14 @@ namespace regulated_pure_pursuit_controller
         // Transform global plan to the frame of interest (w.r.t. the local costmap)
         std::vector<geometry_msgs::PoseStamped> transformed_plan;
         int goal_idx;
-        geometry_msgs::TransformStamped tf_plan_to_global;
-        if (!transformGlobalPlan(*tf_, global_plan_, robot_pose, *costmap_, global_frame_, max_lookahead_dist_, 
-                                transformed_plan, &goal_idx, &tf_plan_to_global))
+        geometry_msgs::TransformStamped tf_plan_to_robot_frame;
+        if (!transformGlobalPlan(*tf_, global_plan_, robot_pose, *costmap_, robot_base_frame_, max_lookahead_dist_, 
+                                transformed_plan, &goal_idx, &tf_plan_to_robot_frame))
         {
             ROS_WARN("Could not transform the global plan to the frame of the controller");
             message = "Could not transform the global plan to the frame of the controller";
             return mbf_msgs::ExePathResult::INTERNAL_ERROR;
         }
-
-        //Check start/end of transformed plan
-        
-        ROS_ERROR("Plan start: (%f, %f)", transformed_plan[0].pose.position.x, transformed_plan[0].pose.position.y );
-        ROS_ERROR("Plan end: (%f, %f)", transformed_plan.back().pose.position.x, transformed_plan.back().pose.position.y );
-
 
         #ifdef DEBUG_TIMER
             timer_log_csv_.push_back(addCheckpoint(wall_elapsed, user_elapsed, system_elapsed, "transformGlobalPlan"));
@@ -274,15 +267,12 @@ namespace regulated_pure_pursuit_controller
 
         // check if global goal is reached
         geometry_msgs::PoseStamped global_goal;
-        tf2::doTransform(global_plan_.back(), global_goal, tf_plan_to_global);
-        double dx = global_goal.pose.position.x - robot_pose.pose.position.x;
-        double dy = global_goal.pose.position.y -  robot_pose.pose.position.y;
+        tf2::doTransform(global_plan_.back(), global_goal, tf_plan_to_robot_frame);
+        double dx_2 = global_goal.pose.position.x * global_goal.pose.position.x;
+        double dy_2 = global_goal.pose.position.y * global_goal.pose.position.y;
 
-        ROS_ERROR("Distance to goal: (%f, %f)", dx, dy);
-
-        if(fabs(std::sqrt(dx*dx+dy*dy)) < goal_dist_tol_)
+        if(fabs(std::sqrt(dx_2 + dy_2)) < goal_dist_tol_)
         {
-            ROS_ERROR("goal_reached with dist_to_goal = %f", fabs(std::sqrt(dx*dx+dy*dy)));
             goal_reached_ = true;
             return mbf_msgs::ExePathResult::SUCCESS;
         }
@@ -301,7 +291,6 @@ namespace regulated_pure_pursuit_controller
 
         //Dynamically adjust look ahead distance based on the speed
         double lookahead_dist = getLookAheadDistance(speed);
-        ROS_ERROR("lookahead_dist: %f", lookahead_dist);
 
         //Get lookahead point and publish for visualization
         geometry_msgs::PoseStamped carrot_pose = getLookAheadPoint(lookahead_dist, transformed_plan);
@@ -317,15 +306,11 @@ namespace regulated_pure_pursuit_controller
             (carrot_pose.pose.position.x * carrot_pose.pose.position.x) +
             (carrot_pose.pose.position.y * carrot_pose.pose.position.y);
 
-        ROS_ERROR("Carrot pose: (%f, %f), carrot dist: %f", carrot_pose.pose.position.x, carrot_pose.pose.position.y, carrot_dist2);
-
         // Find curvature of circle (k = 1 / R)
         double curvature = 0.0;
         if (carrot_dist2 > 0.001) {
             curvature = 2.0 * carrot_pose.pose.position.y / carrot_dist2;
         }
-
-        ROS_ERROR("Curvature: %f", curvature);
 
         //Set reversal
         double sign = 1.0;
@@ -358,10 +343,9 @@ namespace regulated_pure_pursuit_controller
                 lookahead_dist, curvature, speed,
                 costAtPose(robot_pose.pose.position.x, robot_pose.pose.position.y), linear_vel, sign);
             // Apply curvature to angular velocity after constraining linear velocity
-            ROS_ERROR("Calculating angular vel: lin_vel(%f), curvature(%f) ", linear_vel, curvature);
             angular_vel = linear_vel * curvature;
             //Ensure that angular_vel does not exceed user-defined amount
-            // angular_vel = std::clamp(angular_vel, -max_angular_vel_, max_angular_vel_);
+            angular_vel = std::clamp(angular_vel, -max_angular_vel_, max_angular_vel_);
         }
 
         #ifdef DEBUG_TIMER
@@ -379,33 +363,11 @@ namespace regulated_pure_pursuit_controller
             csv_writer_->writeData(timer_log_csv_);
         #endif
 
-        ROS_ERROR("lin_vel(%f), ang_vel(%f) ", linear_vel, angular_vel);
-
-
         // populate and return message
         cmd_vel.twist.linear.x = linear_vel;
         cmd_vel.twist.angular.z = angular_vel;
 
         return mbf_msgs::ExePathResult::SUCCESS;
-
-    }
-
-    std::vector<std::string> RegulatedPurePursuitController::addCheckpoint(double &wall, double &user, double &system, std::string cp_name){
-
-        std::vector<std::string> timer_row;
-        timer_row.push_back(cp_name);
-        timer_row.push_back(std::to_string(cpu_timer_->elapsed().wall - wall));
-        double user_cp = cpu_timer_->elapsed().user - user;
-        double system_cp = cpu_timer_->elapsed().system - system;
-        timer_row.push_back(std::to_string(user_cp));
-        timer_row.push_back(std::to_string(system_cp));
-        timer_row.push_back(std::to_string(user_cp + system_cp));
-
-        wall = cpu_timer_->elapsed().wall;
-        user = cpu_timer_->elapsed().user;
-        system = cpu_timer_->elapsed().system;
-
-        return timer_row;
 
     }
 
@@ -421,11 +383,6 @@ namespace regulated_pure_pursuit_controller
 
     bool RegulatedPurePursuitController::isGoalReached()
     {
-        if (! isInitialized()) {
-            ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
-            return false;
-        }
-
         if (goal_reached_){
             ROS_INFO("[RegulatedPurePursuitController] Goal Reached!");
             return true;
@@ -478,7 +435,6 @@ namespace regulated_pure_pursuit_controller
         const double radius = fabs(1.0 / curvature);
         const double & min_rad = regulated_linear_scaling_min_radius_;
 
-        ROS_INFO("Radius now (%f), minimum radius (%f)", radius, min_rad);
         if (use_regulated_linear_velocity_scaling_ && radius < min_rad) {
             curvature_vel *= 1.0 - (fabs(radius - min_rad) / min_rad);
         }
@@ -525,7 +481,6 @@ namespace regulated_pure_pursuit_controller
         linear_vel = std::clamp(fabs(linear_vel), 0.0, desired_linear_vel_);
         linear_vel = sign * linear_vel;
     }
-
     
     /**
      * Calculation methods 
@@ -562,7 +517,6 @@ namespace regulated_pure_pursuit_controller
             lookahead_dist = std::clamp(lookahead_dist, min_lookahead_dist_, max_lookahead_dist_);
         }
 
-
         return lookahead_dist;
     }
 
@@ -570,13 +524,19 @@ namespace regulated_pure_pursuit_controller
     bool RegulatedPurePursuitController::transformGlobalPlan(
         const tf2_ros::Buffer& tf, const std::vector<geometry_msgs::PoseStamped>& global_plan,
         const geometry_msgs::PoseStamped& global_pose, const costmap_2d::Costmap2D& costmap, const std::string& global_frame, double max_plan_length,
-        std::vector<geometry_msgs::PoseStamped>& transformed_plan, int* current_goal_idx, geometry_msgs::TransformStamped* tf_plan_to_global)
+        std::vector<geometry_msgs::PoseStamped>& transformed_plan, int* current_goal_idx, geometry_msgs::TransformStamped* tf_plan_to_robot_frame)
     {
         // this method is a slightly modified version of base_local_planner/goal_functions.h
         const geometry_msgs::PoseStamped& plan_pose = global_plan[0];
 
         transformed_plan.clear();
 
+        #ifdef DEBUG_TIMER
+            timer_log_csv_tgp_.clear();
+            double wall_elapsed = cpu_timer_->elapsed().wall;
+            double user_elapsed = cpu_timer_->elapsed().user;
+            double system_elapsed = cpu_timer_->elapsed().system;
+        #endif
 
         try {
             if (global_plan_.empty()){
@@ -586,18 +546,17 @@ namespace regulated_pure_pursuit_controller
             }
 
 
-            // get plan_to_global_transform from plan frame to global_frame
-            geometry_msgs::TransformStamped plan_to_global_transform = tf.lookupTransform(robot_base_frame_, ros::Time(), plan_pose.header.frame_id, plan_pose.header.stamp,
+            // get plan_to_robot_transform from plan frame to global_frame
+            geometry_msgs::TransformStamped plan_to_robot_transform = tf.lookupTransform(global_frame, ros::Time(), plan_pose.header.frame_id, plan_pose.header.stamp,
                                                                                         plan_pose.header.frame_id, transform_tolerance_);
-
+            
+            #ifdef DEBUG_TIMER
+                timer_log_csv_tgp_.push_back(addCheckpoint(wall_elapsed, user_elapsed, system_elapsed, "lookup_transform"));
+            #endif
 
             //let's get the pose of the robot in the frame of the plan
             geometry_msgs::PoseStamped robot_pose;
             tf.transform(global_pose, robot_pose, plan_pose.header.frame_id);
-
-            ROS_INFO( "Plan Frame ID: %s, Robot pose frame id: %s", plan_pose.header.frame_id.c_str(), global_pose.header.frame_id.c_str());
-            ROS_INFO( "Robot (in global frame_id): %f, %f", global_pose.pose.position.x,  global_pose.pose.position.y );
-            ROS_INFO( "Robot (in plan frame_id): %f, %f", robot_pose.pose.position.x,  robot_pose.pose.position.y );
 
             //we'll discard points on the plan that are outside the local costmap
             double dist_threshold = std::max(costmap.getSizeInCellsX() * costmap.getResolution() / 2.0,
@@ -626,7 +585,10 @@ namespace regulated_pure_pursuit_controller
                 }
             }
 
-            
+            #ifdef DEBUG_TIMER
+                timer_log_csv_tgp_.push_back(addCheckpoint(wall_elapsed, user_elapsed, system_elapsed, "getPointOnPlan"));
+            #endif
+
             geometry_msgs::PoseStamped newer_pose;
             
             double plan_length = 0; // check cumulative Euclidean distance along the plan
@@ -637,7 +599,7 @@ namespace regulated_pure_pursuit_controller
                     (max_plan_length<=0 || plan_length <= max_plan_length))
             {
                 const geometry_msgs::PoseStamped& pose = global_plan[i];
-                tf2::doTransform(pose, newer_pose, plan_to_global_transform);
+                tf2::doTransform(pose, newer_pose, plan_to_robot_transform);
 
                 transformed_plan.push_back(newer_pose);
 
@@ -659,7 +621,7 @@ namespace regulated_pure_pursuit_controller
             // the resulting transformed plan can be empty. In that case we explicitly inject the global goal.
             if (transformed_plan.empty())
             {
-                tf2::doTransform(global_plan.back(), newer_pose, plan_to_global_transform);
+                tf2::doTransform(global_plan.back(), newer_pose, plan_to_robot_transform);
 
                 transformed_plan.push_back(newer_pose);
                 
@@ -675,7 +637,12 @@ namespace regulated_pure_pursuit_controller
             }
             
             // Return the transformation from the global plan to the global planning frame if desired
-            if (tf_plan_to_global) *tf_plan_to_global = plan_to_global_transform;
+            if (tf_plan_to_robot_frame) *tf_plan_to_robot_frame = plan_to_robot_transform;
+
+            #ifdef DEBUG_TIMER
+                timer_log_csv_tgp_.push_back(addCheckpoint(wall_elapsed, user_elapsed, system_elapsed, "transformPlan"));
+                csv_writer_tgp_->writeData(timer_log_csv_);
+            #endif
 
         }
         catch(tf::LookupException& ex)
