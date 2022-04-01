@@ -155,7 +155,7 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
      NOT IS_SYMLINK "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libregulated_pure_pursuit_controller.so")
     file(RPATH_CHANGE
          FILE "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libregulated_pure_pursuit_controller.so"
-         OLD_RPATH "/opt/ros/noetic/lib:"
+         OLD_RPATH "/home/john/catkin_ws/devel/.private/mbf_utility/lib:/home/john/catkin_ws/devel/.private/logging_tools/lib:/opt/ros/noetic/lib:"
          NEW_RPATH "")
     if(CMAKE_INSTALL_DO_STRIP)
       execute_process(COMMAND "/bin/strip" "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libregulated_pure_pursuit_controller.so")

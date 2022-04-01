@@ -1,7 +1,19 @@
 <library path="lib/libregulated_pure_pursuit_controller">
-  <class name="regulated_pure_pursuit_controller/RegulatedPurePursuitController" type="regulated_pure_pursuit_controller::RegulatedPurePursuitController" base_class_type="nav_core::BaseLocalPlanner">
+  <class  name="regulated_pure_pursuit_controller/RegulatedPurePursuitController" 
+          type="regulated_pure_pursuit_controller::RegulatedPurePursuitController" 
+          base_class_type="nav_core::BaseLocalPlanner">
     <description>
-      Implementation of the Pure Pursuit Algorithm
+      Implementation of the Pure Pursuit Algorithm to base_local_planner of the 2D Nav stack.
     </description>
   </class>
+
+
+  <class  name="regulated_pure_pursuit_controller/RegulatedPurePursuitController" 
+          type="regulated_pure_pursuit_controller::RegulatedPurePursuitController" 
+          base_class_type="mbf_costmap_core::CostmapController">
+    <description>
+      Implementation of the Pure Pursuit Algorithm extended to MBF CostmapController's extended interface.
+    </description>
+  </class>
+
 </library>

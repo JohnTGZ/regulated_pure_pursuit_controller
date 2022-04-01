@@ -13,14 +13,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #include "regulated_pure_pursuit_controller/regulated_pure_pursuit_controller.h"
 
 // pluginlib macros (defines, ...)
 #include <pluginlib/class_list_macros.h>
 
+// #define DEBUG_TIMER
+
 // PLUGINLIB_DECLARE_CLASS has been changed to PLUGINLIB_EXPORT_CLASS in ROS Noetic
 // Changing all tf::TransformListener* to tf2_ros::Buffer*
+PLUGINLIB_EXPORT_CLASS(regulated_pure_pursuit_controller::RegulatedPurePursuitController, mbf_costmap_core::CostmapController)
 PLUGINLIB_EXPORT_CLASS(regulated_pure_pursuit_controller::RegulatedPurePursuitController, nav_core::BaseLocalPlanner)
 
 namespace regulated_pure_pursuit_controller
@@ -39,9 +41,11 @@ namespace regulated_pure_pursuit_controller
             costmap_ros_ = costmap_ros;
             costmap_ = costmap_ros_->getCostmap();
 
-            costmap_ros_->getRobotPose(current_pose_);
+            global_frame_ = costmap_ros_->getGlobalFrameID();
+            robot_base_frame_ = costmap_ros_->getBaseFrameID();
 
             costmap_model_ = new base_local_planner::CostmapModel(*costmap_);
+            
 
             initParams(pnh_);
             initPubSubSrv(pnh_);
@@ -55,6 +59,22 @@ namespace regulated_pure_pursuit_controller
             ROS_WARN("RegulatedPurePursuitController has already been initialized, doing nothing.");
         }
 
+        #ifdef DEBUG_TIMER
+            std::vector<std::string> csv_header = {"name", "wall","user","system","User+System"};
+
+            //Start timer
+            cpu_timer_ = new boost::timer::cpu_timer();
+            csv_writer_.reset(new CSVManipulator("/logging/", "test.csv", true, nullptr, false));
+            timer_log_csv_.push_back(csv_header);
+            csv_writer_->writeData(timer_log_csv_);
+
+            cpu_timer_tgp_ = new boost::timer::cpu_timer();
+            csv_writer_tgp_.reset(new CSVManipulator("/logging/", "test_transformglobalplan.csv", true, nullptr, false));
+            timer_log_csv_tgp_.push_back(csv_header);
+            csv_writer_tgp_->writeData(timer_log_csv_);
+
+        #endif 
+
     }
 
     void RegulatedPurePursuitController::initPubSubSrv(ros::NodeHandle& nh){
@@ -62,8 +82,6 @@ namespace regulated_pure_pursuit_controller
         local_plan_pub_ = nh.advertise<nav_msgs::Path>("local_plan", 1);
         carrot_pub_ = nh.advertise<geometry_msgs::PointStamped>("lookahead_point", 1);
         carrot_arc_pub_ = nh.advertise<nav_msgs::Path>("lookahead_collision_arc", 1);
-        
-        local_cmd_vel_pub_ = nh.advertise<geometry_msgs::Twist>("cmd_vel", 1);
     }
 
     void RegulatedPurePursuitController::initParams(ros::NodeHandle& nh){
@@ -71,6 +89,9 @@ namespace regulated_pure_pursuit_controller
 
         nh.param<double>("max_robot_pose_search_dist", max_robot_pose_search_dist_, getCostmapMaxExtent());
 
+
+        nh.param<double>("global_plan_prune_distance", global_plan_prune_distance_, 1.0);
+    
         //Lookahead
         nh.param<double>("lookahead_time", lookahead_time_, 1.5);
         nh.param<double>("lookahead_dist", lookahead_dist_, 0.25);
@@ -126,9 +147,6 @@ namespace regulated_pure_pursuit_controller
         nh.param<double>("transform_tolerance", transform_tolerance, 0.1);
         transform_tolerance_ = ros::Duration(transform_tolerance);
 
-
-
-
         //Ddynamic Reconfigure
 
         ddr_.reset(new ddynamic_reconfigure::DDynamicReconfigure(nh));
@@ -177,40 +195,99 @@ namespace regulated_pure_pursuit_controller
             return false;
         }
 
-        global_plan_.poses.clear();
-        //Convert the global plan to nav_msgs::Path as the original regulated pure pursuit uses this message type
-        createPathMsg(orig_global_plan, global_plan_);
+        // store the global plan
+        global_plan_.clear();
+        global_plan_ = orig_global_plan;
 
         goal_reached_ = false;
 
         return true;
     }
 
-    bool RegulatedPurePursuitController::computeVelocityCommands(geometry_msgs::Twist &cmd_vel)
+
+    uint32_t RegulatedPurePursuitController::computeVelocityCommands(const geometry_msgs::PoseStamped& pose,
+                                                        const geometry_msgs::TwistStamped& velocity,
+                                                        geometry_msgs::TwistStamped &cmd_vel,
+                                                        std::string &message)
     {
         if(!initialized_)
         {
             ROS_ERROR("RegulatedPurePursuitController has not been initialized, please call initialize() before using this planner");
-            return false;
+            message = "RegulatedPurePursuitController has not been initialized";
+            return mbf_msgs::ExePathResult::NOT_INITIALIZED;
         }
 
-        goal_reached_ = false;
+        #ifdef DEBUG_TIMER
+            timer_log_csv_.clear();
+            double wall_elapsed = cpu_timer_->elapsed().wall;
+            double user_elapsed = cpu_timer_->elapsed().user;
+            double system_elapsed = cpu_timer_->elapsed().system;
+        #endif
+
+        static uint32_t seq = 0;
+        cmd_vel.header.seq = seq++;
+        cmd_vel.header.stamp = ros::Time::now();
+        cmd_vel.header.frame_id = robot_base_frame_;
+        cmd_vel.twist.linear.x = cmd_vel.twist.linear.y = cmd_vel.twist.angular.z = 0;
+
+        goal_reached_ = false;  
 
         double linear_vel, angular_vel;
 
         //Get current pose of robot
-        geometry_msgs::PoseStamped pose; 
-        costmap_ros_->getRobotPose(pose);
-        ROS_INFO("Got robot pose with frame_id: %s", pose.header.frame_id.c_str());
-        ROS_INFO("Global Plan frame_id: %s", global_plan_.header.frame_id.c_str());
-        
+        geometry_msgs::PoseStamped robot_pose; 
+        costmap_ros_->getRobotPose(robot_pose);
 
-        //Get the current speed of the robot
+        // Get robot velocity
         geometry_msgs::Twist speed; 
         getRobotVel(speed);
 
-        // Transform path to robot base frame
-        nav_msgs::Path transformed_plan = transformGlobalPlan(pose);
+        #ifdef DEBUG_TIMER
+            timer_log_csv_.push_back(addCheckpoint(wall_elapsed, user_elapsed, system_elapsed, "getRobotPoseAndVel"));
+        #endif
+
+        // prune global plan to cut off parts of the past (spatially before the robot)
+        pruneGlobalPlan(*tf_, robot_pose, global_plan_, 1.0);
+
+        // Transform global plan to the frame of interest (w.r.t. the local costmap)
+        std::vector<geometry_msgs::PoseStamped> transformed_plan;
+        int goal_idx;
+        geometry_msgs::TransformStamped tf_plan_to_robot_frame;
+        if (!transformGlobalPlan(*tf_, global_plan_, robot_pose, *costmap_, robot_base_frame_, max_lookahead_dist_, 
+                                transformed_plan, &goal_idx, &tf_plan_to_robot_frame))
+        {
+            ROS_WARN("Could not transform the global plan to the frame of the controller");
+            message = "Could not transform the global plan to the frame of the controller";
+            return mbf_msgs::ExePathResult::INTERNAL_ERROR;
+        }
+
+        #ifdef DEBUG_TIMER
+            timer_log_csv_.push_back(addCheckpoint(wall_elapsed, user_elapsed, system_elapsed, "transformGlobalPlan"));
+        #endif
+
+        // check if global goal is reached
+        geometry_msgs::PoseStamped global_goal;
+        tf2::doTransform(global_plan_.back(), global_goal, tf_plan_to_robot_frame);
+        double dx_2 = global_goal.pose.position.x * global_goal.pose.position.x;
+        double dy_2 = global_goal.pose.position.y * global_goal.pose.position.y;
+
+        if(fabs(std::sqrt(dx_2 + dy_2)) < goal_dist_tol_)
+        {
+            goal_reached_ = true;
+            return mbf_msgs::ExePathResult::SUCCESS;
+        }
+
+        #ifdef DEBUG_TIMER
+            timer_log_csv_.push_back(addCheckpoint(wall_elapsed, user_elapsed, system_elapsed, "checkIfGoalReached"));
+        #endif
+
+        // Return false if the transformed global plan is empty
+        if (transformed_plan.empty())
+        {
+            ROS_WARN("Transformed plan is empty. Cannot determine a local plan.");
+            message = "Transformed plan is empty";
+            return mbf_msgs::ExePathResult::INVALID_PATH;
+        }
 
         //Dynamically adjust look ahead distance based on the speed
         double lookahead_dist = getLookAheadDistance(speed);
@@ -219,6 +296,10 @@ namespace regulated_pure_pursuit_controller
         geometry_msgs::PoseStamped carrot_pose = getLookAheadPoint(lookahead_dist, transformed_plan);
         carrot_pub_.publish(createCarrotMsg(carrot_pose));
 
+
+        #ifdef DEBUG_TIMER
+            timer_log_csv_.push_back(addCheckpoint(wall_elapsed, user_elapsed, system_elapsed, "getLookAheadDistAndPoint"));
+        #endif
 
         //Carrot distance squared
         const double carrot_dist2 =
@@ -231,13 +312,15 @@ namespace regulated_pure_pursuit_controller
             curvature = 2.0 * carrot_pose.pose.position.y / carrot_dist2;
         }
 
+        //Set reversal
         double sign = 1.0;
         if (allow_reversing_) {
             sign = carrot_pose.pose.position.x >= 0.0 ? 1.0 : -1.0;
         }
 
-        //check if global plan is reached
-        checkGoalReached(pose);
+        #ifdef DEBUG_TIMER
+            timer_log_csv_.push_back(addCheckpoint(wall_elapsed, user_elapsed, system_elapsed, "carrotDistCalculation"));
+        #endif
 
         linear_vel = desired_linear_vel_;
         // Make sure we're in compliance with basic constraints
@@ -245,7 +328,7 @@ namespace regulated_pure_pursuit_controller
 
         //IF robot should use_rotate_to_heading_ && dist_to_goal < goal_dist_tol_
         if (shouldRotateToGoalHeading(carrot_pose)) {
-            double angle_to_goal = tf2::getYaw(transformed_plan.poses.back().pose.orientation);
+            double angle_to_goal = tf2::getYaw(transformed_plan.back().pose.orientation);
             rotateToHeading(linear_vel, angular_vel, angle_to_goal, speed);
         } 
         //IF robot should use_rotate_to_heading_ && angle_to_heading > rotate_to_heading_min_angle_
@@ -258,46 +341,53 @@ namespace regulated_pure_pursuit_controller
             applyConstraints(
                 std::fabs(lookahead_dist - sqrt(carrot_dist2)),
                 lookahead_dist, curvature, speed,
-                costAtPose(pose.pose.position.x, pose.pose.position.y), linear_vel, sign);
+                costAtPose(robot_pose.pose.position.x, robot_pose.pose.position.y), linear_vel, sign);
             // Apply curvature to angular velocity after constraining linear velocity
             angular_vel = linear_vel * curvature;
             //Ensure that angular_vel does not exceed user-defined amount
             angular_vel = std::clamp(angular_vel, -max_angular_vel_, max_angular_vel_);
         }
 
+        #ifdef DEBUG_TIMER
+            timer_log_csv_.push_back(addCheckpoint(wall_elapsed, user_elapsed, system_elapsed, "applyConstraints"));
+        #endif
+
         //Collision checking on this velocity heading
         const double & carrot_dist = std::hypot(carrot_pose.pose.position.x, carrot_pose.pose.position.y);
-        if (isCollisionImminent(pose, linear_vel, angular_vel, carrot_dist)) {
+        if (isCollisionImminent(robot_pose, linear_vel, angular_vel, carrot_dist)) {
             ROS_WARN("RegulatedPurePursuitController detected collision ahead!");
         }
 
+        #ifdef DEBUG_TIMER
+            timer_log_csv_.push_back(addCheckpoint(wall_elapsed, user_elapsed, system_elapsed, "isCollisionImminent"));
+            csv_writer_->writeData(timer_log_csv_);
+        #endif
+
         // populate and return message
-        cmd_vel.linear.x = linear_vel;
-        cmd_vel.angular.z = angular_vel;
+        cmd_vel.twist.linear.x = linear_vel;
+        cmd_vel.twist.angular.z = angular_vel;
 
-        //For debugging
-        local_cmd_vel_pub_.publish(cmd_vel);
+        return mbf_msgs::ExePathResult::SUCCESS;
 
-        return true;
+    }
+
+    bool RegulatedPurePursuitController::computeVelocityCommands(geometry_msgs::Twist &cmd_vel)
+    {
+        std::string dummy_message;
+        geometry_msgs::PoseStamped dummy_pose;
+        geometry_msgs::TwistStamped dummy_velocity, cmd_vel_stamped;
+        uint32_t outcome = computeVelocityCommands(dummy_pose, dummy_velocity, cmd_vel_stamped, dummy_message);
+        cmd_vel = cmd_vel_stamped.twist;
+        return outcome == mbf_msgs::ExePathResult::SUCCESS;
     }
 
     bool RegulatedPurePursuitController::isGoalReached()
     {
-        if (! isInitialized()) {
-            ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
-            return false;
-        }
-        if ( ! costmap_ros_->getRobotPose(current_pose_)) {
-            ROS_ERROR("Could not get robot pose from costmap");
-            return false;
-        }
-
         if (goal_reached_){
-            ROS_INFO("GOAL Reached!");
+            ROS_INFO("[RegulatedPurePursuitController] Goal Reached!");
             return true;
         }
         return false;
-
     }
 
     bool RegulatedPurePursuitController::shouldRotateToPath(
@@ -344,6 +434,7 @@ namespace regulated_pure_pursuit_controller
         // limit the linear velocity by curvature
         const double radius = fabs(1.0 / curvature);
         const double & min_rad = regulated_linear_scaling_min_radius_;
+
         if (use_regulated_linear_velocity_scaling_ && radius < min_rad) {
             curvature_vel *= 1.0 - (fabs(radius - min_rad) / min_rad);
         }
@@ -390,26 +481,25 @@ namespace regulated_pure_pursuit_controller
         linear_vel = std::clamp(fabs(linear_vel), 0.0, desired_linear_vel_);
         linear_vel = sign * linear_vel;
     }
-
-
+    
     /**
      * Calculation methods 
      */
     
     //Get lookahead point on the global plan
     geometry_msgs::PoseStamped RegulatedPurePursuitController::getLookAheadPoint(
-        const double & lookahead_dist, const nav_msgs::Path & transformed_plan)
+        const double & lookahead_dist, const std::vector<geometry_msgs::PoseStamped>& transformed_plan)
     {
         // Find the first pose which is at a distance greater than the lookahead distance
         auto goal_pose_it = std::find_if(
-            transformed_plan.poses.begin(), transformed_plan.poses.end(), [&](const auto & ps) 
+            transformed_plan.begin(), transformed_plan.end(), [&](const auto & ps) 
         {
             return std::hypot(ps.pose.position.x, ps.pose.position.y) >= lookahead_dist;
         });
 
         // If the number of poses is not far enough, take the last pose
-        if (goal_pose_it == transformed_plan.poses.end()) {
-            goal_pose_it = std::prev(transformed_plan.poses.end());
+        if (goal_pose_it == transformed_plan.end()) {
+            goal_pose_it = std::prev(transformed_plan.end());
         }
 
         return *goal_pose_it;
@@ -427,109 +517,200 @@ namespace regulated_pure_pursuit_controller
             lookahead_dist = std::clamp(lookahead_dist, min_lookahead_dist_, max_lookahead_dist_);
         }
 
-
         return lookahead_dist;
     }
 
 
-    //Transform the global plan to the frame of the robot
-    nav_msgs::Path RegulatedPurePursuitController::transformGlobalPlan(
-        const geometry_msgs::PoseStamped & pose){
-        if (global_plan_.poses.empty()) {
-            ROS_WARN("Local Planner received plan with zero length");
-        }
-
-
-        // let's get the pose of the robot in the frame of the plan
-        geometry_msgs::PoseStamped robot_pose;
-        if (!transformPose(global_plan_.header.frame_id, pose, robot_pose)) {
-            ROS_ERROR("Unable to transform robot pose into global plan's frame");
-        }
-
-        // We'll discard points on the plan that are outside the local costmap
-        double max_costmap_extent = getCostmapMaxExtent();
-
-        auto closest_pose_upper_bound =
-            nav2_util::geometry_utils::first_after_integrated_distance(
-                global_plan_.poses.begin(), global_plan_.poses.end(), max_robot_pose_search_dist_);
-
-        // First find the closest pose on the path to the robot
-        // bounded by when the path turns around (if it does) so we don't get a pose from a later
-        // portion of the path
-        auto transformation_begin =
-            nav2_util::geometry_utils::min_by(
-                global_plan_.poses.begin(), closest_pose_upper_bound,
-                [&robot_pose](const geometry_msgs::PoseStamped & ps) 
-                {
-                    return nav2_util::geometry_utils::euclidean_distance(robot_pose, ps);
-                }
-            );
-
-        // Find points up to max_transform_dist so we only transform them.
-        auto transformation_end = std::find_if(
-            transformation_begin, global_plan_.poses.end(),
-            [&](const auto & pose) {
-                return nav2_util::geometry_utils::euclidean_distance(pose, robot_pose) > max_costmap_extent;
-            });
-
-
-        // Lambda to transform a PoseStamped from global frame to local
-        auto transformGlobalPoseToLocal = [&](const auto & global_plan_pose) {
-            geometry_msgs::PoseStamped stamped_pose, transformed_pose;
-            stamped_pose.header.frame_id = global_plan_.header.frame_id;
-            stamped_pose.header.stamp = robot_pose.header.stamp;
-
-            stamped_pose.pose = global_plan_pose.pose;
-
-            transformPose(costmap_ros_->getBaseFrameID(), stamped_pose, transformed_pose);
-            return transformed_pose;
-        };
-
-
-        // Transform the near part of the global plan into the robot's frame of reference.
-        nav_msgs::Path transformed_plan;
-
-        std::transform(
-            transformation_begin, transformation_end,
-            std::back_inserter(transformed_plan.poses),
-            transformGlobalPoseToLocal);
-
-        transformed_plan.header.frame_id = costmap_ros_->getBaseFrameID();
-        transformed_plan.header.stamp = robot_pose.header.stamp;
-
-        // Remove the portion of the global plan that we've already passed so we don't
-        // process it on the next iteration (this is called path pruning)
-        global_plan_.poses.erase(begin(global_plan_.poses), transformation_begin);
-        global_path_pub_.publish(transformed_plan);
-
-        if (transformed_plan.poses.empty()) {
-            ROS_ERROR("Resulting plan has 0 poses in it.");
-        }
-
-        return transformed_plan;
-    }
-
-
-    bool RegulatedPurePursuitController::transformPose(
-        const std::string frame,
-        const geometry_msgs::PoseStamped & in_pose,
-        geometry_msgs::PoseStamped & out_pose) const
+    bool RegulatedPurePursuitController::transformGlobalPlan(
+        const tf2_ros::Buffer& tf, const std::vector<geometry_msgs::PoseStamped>& global_plan,
+        const geometry_msgs::PoseStamped& global_pose, const costmap_2d::Costmap2D& costmap, const std::string& global_frame, double max_plan_length,
+        std::vector<geometry_msgs::PoseStamped>& transformed_plan, int* current_goal_idx, geometry_msgs::TransformStamped* tf_plan_to_robot_frame)
     {
-        if (in_pose.header.frame_id == frame) {
-            out_pose = in_pose;
-            return true;
-        }
+        // this method is a slightly modified version of base_local_planner/goal_functions.h
+        const geometry_msgs::PoseStamped& plan_pose = global_plan[0];
+
+        transformed_plan.clear();
+
+        #ifdef DEBUG_TIMER
+            timer_log_csv_tgp_.clear();
+            double wall_elapsed = cpu_timer_->elapsed().wall;
+            double user_elapsed = cpu_timer_->elapsed().user;
+            double system_elapsed = cpu_timer_->elapsed().system;
+        #endif
 
         try {
-            tf_->transform(in_pose, out_pose, frame, transform_tolerance_);
-            out_pose.header.frame_id = frame;
-            return true;
-        } 
-        catch (tf2::TransformException & ex) {
-            ROS_ERROR("Exception in transformPose: %s", ex.what());
+            if (global_plan_.empty()){
+                ROS_ERROR("Received plan with zero length");
+                *current_goal_idx = 0;
+                return false;
+            }
+
+
+            // get plan_to_robot_transform from plan frame to global_frame
+            geometry_msgs::TransformStamped plan_to_robot_transform = tf.lookupTransform(global_frame, ros::Time(), plan_pose.header.frame_id, plan_pose.header.stamp,
+                                                                                        plan_pose.header.frame_id, transform_tolerance_);
+            
+            #ifdef DEBUG_TIMER
+                timer_log_csv_tgp_.push_back(addCheckpoint(wall_elapsed, user_elapsed, system_elapsed, "lookup_transform"));
+            #endif
+
+            //let's get the pose of the robot in the frame of the plan
+            geometry_msgs::PoseStamped robot_pose;
+            tf.transform(global_pose, robot_pose, plan_pose.header.frame_id);
+
+            //we'll discard points on the plan that are outside the local costmap
+            double dist_threshold = std::max(costmap.getSizeInCellsX() * costmap.getResolution() / 2.0,
+                                            costmap.getSizeInCellsY() * costmap.getResolution() / 2.0);
+            dist_threshold *= 0.85; // just consider 85% of the costmap size to better incorporate point obstacle that are
+                                // located on the border of the local costmap
+            
+
+            int i = 0;
+            double sq_dist_threshold = dist_threshold * dist_threshold;
+            double sq_dist = 1e10;
+            
+            //we need to loop to a point on the plan that is within a certain distance of the robot
+            for(int j=0; j < (int)global_plan.size(); ++j)
+            {
+                double x_diff = robot_pose.pose.position.x - global_plan[j].pose.position.x;
+                double y_diff = robot_pose.pose.position.y - global_plan[j].pose.position.y;
+                double new_sq_dist = x_diff * x_diff + y_diff * y_diff;
+                if (new_sq_dist > sq_dist_threshold)
+                    break;  // force stop if we have reached the costmap border
+
+                if (new_sq_dist < sq_dist) // find closest distance
+                {
+                    sq_dist = new_sq_dist;
+                    i = j;
+                }
+            }
+
+            #ifdef DEBUG_TIMER
+                timer_log_csv_tgp_.push_back(addCheckpoint(wall_elapsed, user_elapsed, system_elapsed, "getPointOnPlan"));
+            #endif
+
+            geometry_msgs::PoseStamped newer_pose;
+            
+            double plan_length = 0; // check cumulative Euclidean distance along the plan
+            
+            //now we'll transform until points are outside of our distance threshold
+            while(  i < (int)global_plan.size() && 
+                    sq_dist <= sq_dist_threshold && 
+                    (max_plan_length<=0 || plan_length <= max_plan_length))
+            {
+                const geometry_msgs::PoseStamped& pose = global_plan[i];
+                tf2::doTransform(pose, newer_pose, plan_to_robot_transform);
+
+                transformed_plan.push_back(newer_pose);
+
+                double x_diff = robot_pose.pose.position.x - global_plan[i].pose.position.x;
+                double y_diff = robot_pose.pose.position.y - global_plan[i].pose.position.y;
+                sq_dist = x_diff * x_diff + y_diff * y_diff;
+                
+                // Calculate distance to previous pose
+                if (i>0 && max_plan_length>0){
+                    plan_length += std::sqrt( std::pow(global_plan[i].pose.position.x - global_plan[i-1].pose.position.x,2) + 
+                                            std::pow(global_plan[i].pose.position.y - global_plan[i-1].pose.position.y,2) );
+                }
+
+
+                ++i;
+            }
+
+            // if we are really close to the goal (<sq_dist_threshold) and the goal is not yet reached (e.g. orientation error >>0)
+            // the resulting transformed plan can be empty. In that case we explicitly inject the global goal.
+            if (transformed_plan.empty())
+            {
+                tf2::doTransform(global_plan.back(), newer_pose, plan_to_robot_transform);
+
+                transformed_plan.push_back(newer_pose);
+                
+                // Return the index of the current goal point (inside the distance threshold)
+                if (current_goal_idx) 
+                    *current_goal_idx = int(global_plan.size())-1;
+            }
+            else
+            {
+                // Return the index of the current goal point (inside the distance threshold)
+                if (current_goal_idx) 
+                    *current_goal_idx = i-1; // subtract 1, since i was increased once before leaving the loop
+            }
+            
+            // Return the transformation from the global plan to the global planning frame if desired
+            if (tf_plan_to_robot_frame) *tf_plan_to_robot_frame = plan_to_robot_transform;
+
+            #ifdef DEBUG_TIMER
+                timer_log_csv_tgp_.push_back(addCheckpoint(wall_elapsed, user_elapsed, system_elapsed, "transformPlan"));
+                csv_writer_tgp_->writeData(timer_log_csv_);
+            #endif
+
         }
-        return false;
+        catch(tf::LookupException& ex)
+        {
+            ROS_ERROR("No Transform available Error: %s\n", ex.what());
+            return false;
+        }
+        catch(tf::ConnectivityException& ex) 
+        {
+            ROS_ERROR("Connectivity Error: %s\n", ex.what());
+            return false;
+        }
+        catch(tf::ExtrapolationException& ex) 
+        {
+            ROS_ERROR("Extrapolation Error: %s\n", ex.what());
+            if (global_plan.size() > 0)
+                ROS_ERROR("Global Frame: %s Plan Frame size %d: %s\n", global_frame.c_str(), (unsigned int)global_plan.size(), global_plan[0].header.frame_id.c_str());
+
+            return false;
+        } 
+
+        return true;
     }
+
+
+    bool RegulatedPurePursuitController::pruneGlobalPlan(const tf2_ros::Buffer& tf, const geometry_msgs::PoseStamped& global_pose, std::vector<geometry_msgs::PoseStamped>& global_plan, double dist_behind_robot)
+    {
+        if (global_plan.empty())
+            return true;
+        
+        try
+        {
+            // transform robot pose into the plan frame (we do not wait here, since pruning not crucial, if missed a few times)
+            geometry_msgs::TransformStamped global_to_plan_transform = tf.lookupTransform(global_plan.front().header.frame_id, global_pose.header.frame_id, ros::Time(0));
+            geometry_msgs::PoseStamped robot;
+            tf2::doTransform(global_pose, robot, global_to_plan_transform);
+            
+            double dist_thresh_sq = dist_behind_robot*dist_behind_robot;
+            
+            // iterate plan until a pose close the robot is found
+            std::vector<geometry_msgs::PoseStamped>::iterator it = global_plan.begin();
+            std::vector<geometry_msgs::PoseStamped>::iterator erase_end = it;
+            while (it != global_plan.end())
+            {
+                double dx = robot.pose.position.x - it->pose.position.x;
+                double dy = robot.pose.position.y - it->pose.position.y;
+                double dist_sq = dx * dx + dy * dy;
+                if (dist_sq < dist_thresh_sq)
+                {
+                    erase_end = it;
+                    break;
+                }
+                ++it;
+            }
+            if (erase_end == global_plan.end())
+                return false;
+            
+            if (erase_end != global_plan.begin())
+                global_plan.erase(global_plan.begin(), erase_end);
+        }
+        catch (const tf::TransformException& ex)
+        {
+            ROS_DEBUG("Cannot prune path since no transform is available: %s\n", ex.what());
+            return false;
+        }
+        return true;
+    }
+
 
 
     double RegulatedPurePursuitController::costAtPose(const double & x, const double & y)
@@ -654,15 +835,7 @@ namespace regulated_pure_pursuit_controller
     }
 
 
-    void RegulatedPurePursuitController::checkGoalReached(geometry_msgs::PoseStamped& pose){
 
-        double dx = global_plan_.poses.back().pose.position.x - pose.pose.position.x;
-        double dy = global_plan_.poses.back().pose.position.y - pose.pose.position.y;
-        if (std::fabs(std::sqrt(dx * dx + dy * dy)) < goal_dist_tol_){
-            goal_reached_ = true;
-        }
-
-    }
 
     /**
      * Helper methods
