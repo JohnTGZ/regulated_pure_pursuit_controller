@@ -204,6 +204,7 @@ namespace regulated_pure_pursuit_controller{
 
       double max_robot_pose_search_dist_;
       double global_plan_prune_distance_{1.0};
+  
 
       //Lookahead
       bool use_velocity_scaled_lookahead_dist_;
@@ -239,6 +240,7 @@ namespace regulated_pure_pursuit_controller{
 
       //Tolerances
       double goal_dist_tol_{0.2};
+      int min_global_plan_complete_size_;
       ros::Duration transform_tolerance_;
       //Control frequency
       double control_duration_;

@@ -28,7 +28,7 @@ PLUGINLIB_EXPORT_CLASS(regulated_pure_pursuit_controller::RegulatedPurePursuitCo
 namespace regulated_pure_pursuit_controller
 {
 
-    RegulatedPurePursuitController::RegulatedPurePursuitController() : initialized_(false), odom_helper_("odom"), goal_reached_("false")
+    RegulatedPurePursuitController::RegulatedPurePursuitController() : initialized_(false), odom_helper_("odom"), goal_reached_(false)
     { }    
 
     void RegulatedPurePursuitController::initialize(std::string name, tf2_ros::Buffer *tf, 
@@ -89,7 +89,7 @@ namespace regulated_pure_pursuit_controller
 
         nh.param<double>("max_robot_pose_search_dist", max_robot_pose_search_dist_, getCostmapMaxExtent());
 
-
+        nh.param<int>("min_global_plan_complete_size", min_global_plan_complete_size_, 20);
         nh.param<double>("global_plan_prune_distance", global_plan_prune_distance_, 1.0);
     
         //Lookahead
@@ -271,7 +271,9 @@ namespace regulated_pure_pursuit_controller
         double dx_2 = global_goal.pose.position.x * global_goal.pose.position.x;
         double dy_2 = global_goal.pose.position.y * global_goal.pose.position.y;
 
-        if(fabs(std::sqrt(dx_2 + dy_2)) < goal_dist_tol_)
+        ROS_INFO("global_plan_.size() = %d", global_plan_.size());
+
+        if(fabs(std::sqrt(dx_2 + dy_2)) < goal_dist_tol_ && global_plan_.size() <= min_global_plan_complete_size_)
         {
             goal_reached_ = true;
             return mbf_msgs::ExePathResult::SUCCESS;
@@ -555,7 +557,6 @@ namespace regulated_pure_pursuit_controller
             // geometry_msgs::TransformStamped plan_to_robot_transform = tf.lookupTransform(robot_base_frame, ros::Time(0), plan_pose.header.frame_id, plan_pose.header.stamp,
             //                                                                             plan_pose.header.frame_id, transform_tolerance_);
             
-
             geometry_msgs::TransformStamped plan_to_robot_transform = tf.lookupTransform(robot_base_frame, plan_pose.header.frame_id, 
                                                                                             ros::Time(0), transform_tolerance_);
 
