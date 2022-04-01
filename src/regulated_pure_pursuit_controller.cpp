@@ -523,7 +523,7 @@ namespace regulated_pure_pursuit_controller
 
     bool RegulatedPurePursuitController::transformGlobalPlan(
         const tf2_ros::Buffer& tf, const std::vector<geometry_msgs::PoseStamped>& global_plan,
-        const geometry_msgs::PoseStamped& global_pose, const costmap_2d::Costmap2D& costmap, const std::string& global_frame, double max_plan_length,
+        const geometry_msgs::PoseStamped& global_pose, const costmap_2d::Costmap2D& costmap, const std::string& robot_base_frame, double max_plan_length,
         std::vector<geometry_msgs::PoseStamped>& transformed_plan, int* current_goal_idx, geometry_msgs::TransformStamped* tf_plan_to_robot_frame)
     {
         // this method is a slightly modified version of base_local_planner/goal_functions.h
@@ -545,11 +545,20 @@ namespace regulated_pure_pursuit_controller
                 return false;
             }
 
-
-            // get plan_to_robot_transform from plan frame to global_frame
-            geometry_msgs::TransformStamped plan_to_robot_transform = tf.lookupTransform(global_frame, ros::Time(), plan_pose.header.frame_id, plan_pose.header.stamp,
-                                                                                        plan_pose.header.frame_id, transform_tolerance_);
+            // ros::Time time_now = ros::Time(0);
+            // listener.waitForTransform(robot_base_frame, plan_pose.header.frame_id,
+            //                             time_now, transform_tolerance_);
+            // // get plan_to_robot_transform from plan frame to robot_base_frame
+            // ROS_WARN("Global frame_id(%s): %f, plan_pose frame_id(%s): %f", 
+            //         robot_base_frame.c_str(), time_now.toSec(), 
+            //         plan_pose.header.frame_id.c_str(), plan_pose.header.stamp.toSec());
+            // geometry_msgs::TransformStamped plan_to_robot_transform = tf.lookupTransform(robot_base_frame, ros::Time(0), plan_pose.header.frame_id, plan_pose.header.stamp,
+            //                                                                             plan_pose.header.frame_id, transform_tolerance_);
             
+
+            geometry_msgs::TransformStamped plan_to_robot_transform = tf.lookupTransform(robot_base_frame, plan_pose.header.frame_id, 
+                                                                                            ros::Time(0), transform_tolerance_);
+
             #ifdef DEBUG_TIMER
                 timer_log_csv_tgp_.push_back(addCheckpoint(wall_elapsed, user_elapsed, system_elapsed, "lookup_transform"));
             #endif
@@ -659,7 +668,7 @@ namespace regulated_pure_pursuit_controller
         {
             ROS_ERROR("Extrapolation Error: %s\n", ex.what());
             if (global_plan.size() > 0)
-                ROS_ERROR("Global Frame: %s Plan Frame size %d: %s\n", global_frame.c_str(), (unsigned int)global_plan.size(), global_plan[0].header.frame_id.c_str());
+                ROS_ERROR("Robot Frame: %s Plan Frame size %d: %s\n", robot_base_frame.c_str(), (unsigned int)global_plan.size(), global_plan[0].header.frame_id.c_str());
 
             return false;
         } 
@@ -835,12 +844,9 @@ namespace regulated_pure_pursuit_controller
     }
 
 
-
-
     /**
      * Helper methods
      */
-
 
     void RegulatedPurePursuitController::createPathMsg(const std::vector<geometry_msgs::PoseStamped>& plan, nav_msgs::Path& path){
 

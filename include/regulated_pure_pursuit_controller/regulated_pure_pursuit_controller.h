@@ -28,13 +28,15 @@
 #include <base_local_planner/costmap_model.h>
 #include <tf2/utils.h>
 #include <tf/tf.h>
+#include <tf/transform_listener.h>
 
 #include <nav_msgs/Path.h>
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/PointStamped.h>
 
-#include <regulated_pure_pursuit_controller/geometry_utils.h>
+// #include <regulated_pure_pursuit_controller/geometry_utils.h>
+#include <geometry_msgs/Pose2D.h>
 
 #include <mbf_costmap_core/costmap_controller.h>
 #include <mbf_msgs/ExePathResult.h>
@@ -104,7 +106,7 @@ namespace regulated_pure_pursuit_controller{
         */
     bool transformGlobalPlan(
         const tf2_ros::Buffer& tf, const std::vector<geometry_msgs::PoseStamped>& global_plan,
-        const geometry_msgs::PoseStamped& global_pose, const costmap_2d::Costmap2D& costmap, const std::string& global_frame, double max_plan_length,
+        const geometry_msgs::PoseStamped& global_pose, const costmap_2d::Costmap2D& costmap, const std::string& robot_base_frame, double max_plan_length,
         std::vector<geometry_msgs::PoseStamped>& transformed_plan, int* current_goal_idx, geometry_msgs::TransformStamped* tf_plan_to_robot_frame);
 
     bool isGoalReached();
@@ -244,6 +246,7 @@ namespace regulated_pure_pursuit_controller{
       /**
        * Pointer to other ROS Objects
        */
+      tf::TransformListener listener;
       tf2_ros::Buffer* tf_;
       costmap_2d::Costmap2D* costmap_;
       costmap_2d::Costmap2DROS* costmap_ros_;
