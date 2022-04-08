@@ -271,8 +271,6 @@ namespace regulated_pure_pursuit_controller
         double dx_2 = global_goal.pose.position.x * global_goal.pose.position.x;
         double dy_2 = global_goal.pose.position.y * global_goal.pose.position.y;
 
-        ROS_INFO("global_plan_.size() = %d", global_plan_.size());
-
         if(fabs(std::sqrt(dx_2 + dy_2)) < goal_dist_tol_ && global_plan_.size() <= min_global_plan_complete_size_)
         {
             goal_reached_ = true;
