@@ -545,18 +545,13 @@ namespace regulated_pure_pursuit_controller
                 return false;
             }
 
-            // ros::Time time_now = ros::Time(0);
-            // listener.waitForTransform(robot_base_frame, plan_pose.header.frame_id,
-            //                             time_now, transform_tolerance_);
-            // // get plan_to_robot_transform from plan frame to robot_base_frame
-            // ROS_WARN("Global frame_id(%s): %f, plan_pose frame_id(%s): %f", 
-            //         robot_base_frame.c_str(), time_now.toSec(), 
-            //         plan_pose.header.frame_id.c_str(), plan_pose.header.stamp.toSec());
-            // geometry_msgs::TransformStamped plan_to_robot_transform = tf.lookupTransform(robot_base_frame, ros::Time(0), plan_pose.header.frame_id, plan_pose.header.stamp,
-            //                                                                             plan_pose.header.frame_id, transform_tolerance_);
-            
-            geometry_msgs::TransformStamped plan_to_robot_transform = tf.lookupTransform(robot_base_frame, plan_pose.header.frame_id, 
-                                                                                            ros::Time(0), transform_tolerance_);
+            // if (!tf.canTransform(robot_base_frame, plan_pose.header.frame_id, plan_pose.header.stamp, transform_tolerance_ )){
+            //     return false;
+            // }
+            //get plan_to_robot_transform from plan frame to robot frame
+            geometry_msgs::TransformStamped plan_to_robot_transform = tf.lookupTransform(robot_base_frame, global_pose.header.stamp,
+                                                                                            plan_pose.header.frame_id, plan_pose.header.stamp, 
+                                                                                            plan_pose.header.frame_id, transform_tolerance_);
 
             #ifdef DEBUG_TIMER
                 timer_log_csv_tgp_.push_back(addCheckpoint(wall_elapsed, user_elapsed, system_elapsed, "lookup_transform"));
