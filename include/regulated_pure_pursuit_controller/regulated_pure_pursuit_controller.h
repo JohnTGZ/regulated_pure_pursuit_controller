@@ -41,13 +41,7 @@
 #include <mbf_costmap_core/costmap_controller.h>
 #include <mbf_msgs/ExePathResult.h>
 
-#include <logging_tools/csv_manipulator.h>
 
-#define DEBUG_TIMER
-
-#ifdef DEBUG_TIMER
-#include <boost/timer/timer.hpp>
-#endif
 
 namespace regulated_pure_pursuit_controller{
   class RegulatedPurePursuitController : public nav_core::BaseLocalPlanner, public mbf_costmap_core::CostmapController{
@@ -284,41 +278,6 @@ namespace regulated_pure_pursuit_controller{
        * debug profiling 
        */
 
-      
-      #ifdef DEBUG_TIMER
-        std::vector<std::string> addCheckpoint(double &wall, 
-                                              double &user, 
-                                              double &system, 
-                                              std::string cp_name){
-
-          std::vector<std::string> timer_row;
-          timer_row.push_back(cp_name);
-          timer_row.push_back(std::to_string(cpu_timer_->elapsed().wall - wall));
-          double user_cp = cpu_timer_->elapsed().user - user;
-          double system_cp = cpu_timer_->elapsed().system - system;
-          timer_row.push_back(std::to_string(user_cp));
-          timer_row.push_back(std::to_string(system_cp));
-          timer_row.push_back(std::to_string(user_cp + system_cp));
-
-          wall = cpu_timer_->elapsed().wall;
-          user = cpu_timer_->elapsed().user;
-          system = cpu_timer_->elapsed().system;
-
-          return timer_row;
-
-      }
-
-        //Timer for Compute velocity commands
-        boost::timer::cpu_timer* cpu_timer_;
-        std::unique_ptr<CSVManipulator> csv_writer_;
-        std::vector<std::vector<std::string>> timer_log_csv_;
-
-        //Timer for transform global plan
-        boost::timer::cpu_timer* cpu_timer_tgp_; //cpu timer for transformGlobalPlan
-        std::unique_ptr<CSVManipulator> csv_writer_tgp_;
-        std::vector<std::vector<std::string>> timer_log_csv_tgp_;
-
-      #endif
   };
 };
 

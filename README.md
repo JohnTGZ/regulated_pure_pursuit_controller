@@ -12,6 +12,7 @@ In no way did I write the original algorithm/source code, this originally develo
 # Dependencies
 
 1. [ddynamic_reconfigure](https://github.com/pal-robotics/ddynamic_reconfigure)
+2. [Move Base Flex](https://github.com/magazino/move_base_flex)
 
 
 # Deviations from Nav2 Package
