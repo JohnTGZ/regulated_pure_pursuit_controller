@@ -33,3 +33,5 @@ CATKIN_IGNORE
 # editors
 *.vscode
 /.project
+
+build

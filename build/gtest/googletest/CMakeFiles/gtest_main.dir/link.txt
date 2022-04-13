@@ -1,1 +1,0 @@
-/bin/c++ -fPIC -g  -shared -Wl,-soname,libgtest_maind.so -o ../lib/libgtest_maind.so CMakeFiles/gtest_main.dir/src/gtest_main.cc.o  -Wl,-rpath,/home/john/catkin_ws/src/regulated_pure_pursuit_controller/build/gtest/lib ../lib/libgtestd.so -lpthread 

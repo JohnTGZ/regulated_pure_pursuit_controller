@@ -1,8 +1,0 @@
-prefix=/usr/local
-
-Name: regulated_pure_pursuit_controller
-Description: Description of regulated_pure_pursuit_controller
-Version: 0.0.1
-Cflags: -I${prefix}/include
-Libs: -L${prefix}/lib -lregulated_pure_pursuit_controller
-Requires: pluginlib roscpp
