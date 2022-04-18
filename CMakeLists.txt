@@ -9,6 +9,7 @@ add_compile_options(-std=c++17)
 find_package(catkin REQUIRED COMPONENTS
         roscpp
         cmake_modules
+        base_local_planner
         costmap_2d
         nav_core
         nav_msgs
@@ -34,6 +35,16 @@ catkin_package(
         CATKIN_DEPENDS
         pluginlib
         roscpp
+        base_local_planner
+        costmap_2d
+        nav_core
+        nav_msgs
+        pluginlib
+        ddynamic_reconfigure
+        tf
+
+        mbf_msgs
+        mbf_costmap_core
 )
 
 add_library(regulated_pure_pursuit_controller
