@@ -59,7 +59,7 @@ install(TARGETS regulated_pure_pursuit_controller
         LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         )
 
-install(FILES pure_pursuit_plugin.xml
+install(FILES regulated_pure_pursuit_controller.xml
         DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
         )
 
