@@ -134,7 +134,7 @@ namespace regulated_pure_pursuit_controller
 
         ddr_.reset(new ddynamic_reconfigure::DDynamicReconfigure(nh));
         ddr_->registerVariable<double>("lookahead_time", &this->lookahead_time_, "", 0.0, 20.0);
-        ddr_->registerVariable<double>("lookahead_dist", &this->lookahead_time_, "", 0.0, 20.0);
+        ddr_->registerVariable<double>("lookahead_dist", &this->lookahead_dist_, "", 0.0, 20.0);
 
         ddr_->registerVariable<bool>("use_velocity_scaled_lookahead_dist", &this->use_velocity_scaled_lookahead_dist_);
         ddr_->registerVariable<double>("min_lookahead_dist", &this->min_lookahead_dist_, "", 0.0, 5.0);
