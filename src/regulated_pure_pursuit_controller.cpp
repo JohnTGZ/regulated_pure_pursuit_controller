@@ -19,19 +19,16 @@
 #include <pluginlib/class_list_macros.h>
 
 // PLUGINLIB_DECLARE_CLASS has been changed to PLUGINLIB_EXPORT_CLASS in ROS Noetic
-// Changing all tf::TransformListener* to tf2_ros::Buffer*
 PLUGINLIB_EXPORT_CLASS(regulated_pure_pursuit_controller::RegulatedPurePursuitController, mbf_costmap_core::CostmapController)
 PLUGINLIB_EXPORT_CLASS(regulated_pure_pursuit_controller::RegulatedPurePursuitController, nav_core::BaseLocalPlanner)
 
 namespace regulated_pure_pursuit_controller
 {
 
-    RegulatedPurePursuitController::RegulatedPurePursuitController() : initialized_(false), odom_helper_("odom"), goal_reached_(false)
-    {
-    }
+    RegulatedPurePursuitController::RegulatedPurePursuitController() : initialized_(false), odom_helper_("odom"), goal_reached_(false) {}
 
-    void RegulatedPurePursuitController::initialize(std::string name, tf2_ros::Buffer *tf,
-                                                    costmap_2d::Costmap2DROS *costmap_ros)
+    // tf::TransformListener* has been changed to tf2_ros::Buffer* in ROS Noetic
+    void RegulatedPurePursuitController::initialize(std::string name, tf2_ros::Buffer *tf, costmap_2d::Costmap2DROS *costmap_ros)
     {
         if (!isInitialized())
         {
@@ -181,12 +178,10 @@ namespace regulated_pure_pursuit_controller
             return false;
         }
 
-        // store the global plan
+        // Store the global plan that was passed in, into a global container
         global_plan_.clear();
         global_plan_ = orig_global_plan;
-
         goal_reached_ = false;
-
         return true;
     }
 
@@ -208,6 +203,7 @@ namespace regulated_pure_pursuit_controller
         cmd_vel.header.frame_id = robot_base_frame_;
         cmd_vel.twist.linear.x = cmd_vel.twist.linear.y = cmd_vel.twist.angular.z = 0;
 
+        // Set the goal reached to false
         goal_reached_ = false;
 
         double linear_vel, angular_vel;
@@ -257,15 +253,14 @@ namespace regulated_pure_pursuit_controller
 
         // Dynamically adjust look ahead distance based on the speed
         double lookahead_dist = getLookAheadDistance(speed);
+        ROS_INFO("The lookahead distance is currently: %f", lookahead_dist);
 
         // Get lookahead point and publish for visualization
         geometry_msgs::PoseStamped carrot_pose = getLookAheadPoint(lookahead_dist, transformed_plan);
         carrot_pub_.publish(createCarrotMsg(carrot_pose));
 
         // Carrot distance squared
-        const double carrot_dist2 =
-            (carrot_pose.pose.position.x * carrot_pose.pose.position.x) +
-            (carrot_pose.pose.position.y * carrot_pose.pose.position.y);
+        const double carrot_dist2 = (carrot_pose.pose.position.x * carrot_pose.pose.position.x) + (carrot_pose.pose.position.y * carrot_pose.pose.position.y);
 
         // Find curvature of circle (k = 1 / R)
         double curvature = 0.0;
@@ -282,30 +277,33 @@ namespace regulated_pure_pursuit_controller
         }
 
         linear_vel = desired_linear_vel_;
+
         // Make sure we're in compliance with basic constraints
         double angle_to_heading;
 
-        // IF robot should use_rotate_to_heading_ && dist_to_goal < goal_dist_tol_
+        // If robot should use_rotate_to_heading_ && dist_to_goal < goal_dist_tol_
         if (shouldRotateToGoalHeading(carrot_pose))
         {
+            ROS_INFO("Going to rotate to the goal heading");
             double angle_to_goal = tf2::getYaw(transformed_plan.back().pose.orientation);
             rotateToHeading(linear_vel, angular_vel, angle_to_goal, speed);
         }
-        // IF robot should use_rotate_to_heading_ && angle_to_heading > rotate_to_heading_min_angle_
+        // If robot should use_rotate_to_heading_ && angle_to_heading > rotate_to_heading_min_angle_
         else if (shouldRotateToPath(carrot_pose, angle_to_heading))
         {
+            ROS_INFO("Going to rotate to the path heading");
             rotateToHeading(linear_vel, angular_vel, angle_to_heading, speed);
         }
         // Travel forward and accordinging to the curvature
         else
         {
+            ROS_INFO("Simply respecting the curvature of the path");
             // Constrain linear velocity
-            applyConstraints(
-                std::fabs(lookahead_dist - sqrt(carrot_dist2)),
-                lookahead_dist, curvature, speed,
-                costAtPose(robot_pose.pose.position.x, robot_pose.pose.position.y), linear_vel, sign);
+            applyConstraints(std::fabs(lookahead_dist - sqrt(carrot_dist2)), lookahead_dist, curvature, speed, costAtPose(robot_pose.pose.position.x, robot_pose.pose.position.y), linear_vel, sign);
+
             // Apply curvature to angular velocity after constraining linear velocity
             angular_vel = linear_vel * curvature;
+            
             // Ensure that angular_vel does not exceed user-defined amount
             angular_vel = std::clamp(angular_vel, -max_angular_vel_, max_angular_vel_);
         }
@@ -344,25 +342,21 @@ namespace regulated_pure_pursuit_controller
         return false;
     }
 
-    bool RegulatedPurePursuitController::shouldRotateToPath(
-        const geometry_msgs::PoseStamped &carrot_pose, double &angle_to_path)
+    bool RegulatedPurePursuitController::shouldRotateToPath(const geometry_msgs::PoseStamped &carrot_pose, double &angle_to_path)
     {
         // Whether we should rotate robot to rough path heading
         angle_to_path = std::atan2(carrot_pose.pose.position.y, carrot_pose.pose.position.x);
         return use_rotate_to_heading_ && fabs(angle_to_path) > rotate_to_heading_min_angle_;
     }
 
-    bool RegulatedPurePursuitController::shouldRotateToGoalHeading(
-        const geometry_msgs::PoseStamped &carrot_pose)
+    bool RegulatedPurePursuitController::shouldRotateToGoalHeading(const geometry_msgs::PoseStamped &carrot_pose)
     {
         // Whether we should rotate robot to goal heading
         double dist_to_goal = std::hypot(carrot_pose.pose.position.x, carrot_pose.pose.position.y);
         return use_rotate_to_heading_ && dist_to_goal < goal_dist_tol_;
     }
 
-    void RegulatedPurePursuitController::rotateToHeading(
-        double &linear_vel, double &angular_vel,
-        const double &angle_to_path, const geometry_msgs::Twist &curr_speed)
+    void RegulatedPurePursuitController::rotateToHeading(double &linear_vel, double &angular_vel, const double &angle_to_path, const geometry_msgs::Twist &curr_speed)
     {
         // Rotate in place using max angular velocity / acceleration possible
         linear_vel = 0.0;
@@ -375,10 +369,7 @@ namespace regulated_pure_pursuit_controller
         angular_vel = std::clamp(angular_vel, min_feasible_angular_speed, max_feasible_angular_speed);
     }
 
-    void RegulatedPurePursuitController::applyConstraints(
-        const double &dist_error, const double &lookahead_dist,
-        const double &curvature, const geometry_msgs::Twist & /*curr_speed*/,
-        const double &pose_cost, double &linear_vel, double &sign)
+    void RegulatedPurePursuitController::applyConstraints(const double &dist_error, const double &lookahead_dist, const double &curvature, const geometry_msgs::Twist & /*curr_speed*/, const double &pose_cost, double &linear_vel, double &sign)
     {
         double curvature_vel = linear_vel;
         double cost_vel = linear_vel;
@@ -662,14 +653,14 @@ namespace regulated_pure_pursuit_controller
                       "to encapsulate the robot footprint at current speeds!");
         }
 
+        // 0 to 255
         unsigned char cost = costmap_->getCost(mx, my);
+
+        // Convert the unsigned char into a double
         return static_cast<double>(cost);
     }
 
-    bool RegulatedPurePursuitController::inCollision(
-        const double &x,
-        const double &y,
-        const double &theta)
+    bool RegulatedPurePursuitController::inCollision(const double &x, const double &y, const double &theta)
     {
         unsigned int mx, my;
 
@@ -684,8 +675,7 @@ namespace regulated_pure_pursuit_controller
         double footprint_cost = costmap_model_->footprintCost(
             x, y, theta, costmap_ros_->getRobotFootprint());
 
-        if (footprint_cost == static_cast<double>(costmap_2d::NO_INFORMATION) &&
-            costmap_ros_->getLayeredCostmap()->isTrackingUnknown())
+        if (footprint_cost == static_cast<double>(costmap_2d::NO_INFORMATION) && costmap_ros_->getLayeredCostmap()->isTrackingUnknown())
         {
             return false;
         }
@@ -694,18 +684,13 @@ namespace regulated_pure_pursuit_controller
         return footprint_cost >= static_cast<double>(costmap_2d::LETHAL_OBSTACLE);
     }
 
-    bool RegulatedPurePursuitController::isCollisionImminent(
-        const geometry_msgs::PoseStamped &robot_pose,
-        const double &linear_vel, const double &angular_vel,
-        const double &carrot_dist)
+    bool RegulatedPurePursuitController::isCollisionImminent(const geometry_msgs::PoseStamped &robot_pose, const double &linear_vel, const double &angular_vel, const double &carrot_dist)
     {
         // Note(stevemacenski): This may be a bit unusual, but the robot_pose is in
         // odom frame and the carrot_pose is in robot base frame.
 
         // check current point is OK
-        if (inCollision(
-                robot_pose.pose.position.x, robot_pose.pose.position.y,
-                tf2::getYaw(robot_pose.pose.orientation)))
+        if (inCollision(robot_pose.pose.position.x, robot_pose.pose.position.y, tf2::getYaw(robot_pose.pose.orientation)))
         {
             return true;
         }
@@ -779,13 +764,9 @@ namespace regulated_pure_pursuit_controller
         return false;
     }
 
-    /**
-     * Helper methods
-     */
-
+    // Create path message based a given PoseStamped plan
     void RegulatedPurePursuitController::createPathMsg(const std::vector<geometry_msgs::PoseStamped> &plan, nav_msgs::Path &path)
     {
-
         path.header = plan[0].header;
         for (int i = 0; i < plan.size(); i++)
         {
@@ -793,6 +774,7 @@ namespace regulated_pure_pursuit_controller
         }
     }
 
+    // Create a carrot
     geometry_msgs::PointStamped RegulatedPurePursuitController::createCarrotMsg(const geometry_msgs::PoseStamped &carrot_pose)
     {
         geometry_msgs::PointStamped carrot_msg;
@@ -803,21 +785,18 @@ namespace regulated_pure_pursuit_controller
         return carrot_msg;
     }
 
-    // Get the size of the costmap
+    // Get the size of the costmap and divide it by 2
     double RegulatedPurePursuitController::getCostmapMaxExtent() const
     {
-        const double max_costmap_dim_meters = std::max(
-            costmap_->getSizeInMetersX(), costmap_->getSizeInMetersX());
-
+        const double max_costmap_dim_meters = std::max(costmap_->getSizeInMetersX(), costmap_->getSizeInMetersX());
         return max_costmap_dim_meters / 2.0;
     }
 
+    // Get the robot's velocity
     void RegulatedPurePursuitController::getRobotVel(geometry_msgs::Twist &speed)
     {
         nav_msgs::Odometry robot_odom;
-
         odom_helper_.getOdom(robot_odom);
-
         speed.linear.x = robot_odom.twist.twist.linear.x;
         speed.angular.z = robot_odom.twist.twist.angular.z;
     }
