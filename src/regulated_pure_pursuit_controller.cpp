@@ -96,6 +96,12 @@ namespace regulated_pure_pursuit_controller
             allow_reversing_ = false;
         }
 
+        ros::NodeHandle normal_namespace;
+        normal_namespace.param<double>("diff_drive_controller/linear/x/max_velocity", diff_drive_lin_val_, 0.2);
+        nh.param<bool>("use_diff_drive_params_max_lin_vel", use_diff_drive_params_max_lin_vel_, false);
+
+        ROS_WARN("[regulated] : The parameters in regulated pure pursuit are as follows: %d, %f", use_diff_drive_params_max_lin_vel_, diff_drive_lin_val_);
+
         //Speed
         nh.param<double>("desired_linear_vel", desired_linear_vel_, 0.5);
         nh.param<double>("max_angular_vel", max_angular_vel_, 1.5);
@@ -218,7 +224,6 @@ namespace regulated_pure_pursuit_controller
         geometry_msgs::Twist speed; 
         getRobotVel(speed);
 
-
         // prune global plan to cut off parts of the past (spatially before the robot)
         pruneGlobalPlan(*tf_, robot_pose, global_plan_, 1.0);
 
@@ -260,12 +265,20 @@ namespace regulated_pure_pursuit_controller
 
         //Get lookahead point and publish for visualization
         geometry_msgs::PoseStamped carrot_pose = getLookAheadPoint(lookahead_dist, transformed_plan);
+        ROS_ERROR("THe current x: %0.3f and current y: %0.3f", carrot_pose.pose.position.x, carrot_pose.pose.position.y);
+        if (fabs(carrot_pose.pose.position.y) < 0.1 && fabs(carrot_pose.pose.position.x) > 0.0) {}
+        else 
+        {
+            ROS_ERROR("During turns restrict the lookahead");
+            // Set the lookahead distance to a minimum if the pose is far left or right
+            lookahead_dist = min_lookahead_dist_;
+            carrot_pose = getLookAheadPoint(lookahead_dist, transformed_plan);
+        }
+
         carrot_pub_.publish(createCarrotMsg(carrot_pose));
 
-        //Carrot distance squared
-        const double carrot_dist2 =
-            (carrot_pose.pose.position.x * carrot_pose.pose.position.x) +
-            (carrot_pose.pose.position.y * carrot_pose.pose.position.y);
+        // Carrot distance squared
+        const double carrot_dist2 = (carrot_pose.pose.position.x * carrot_pose.pose.position.x) + (carrot_pose.pose.position.y * carrot_pose.pose.position.y);
 
         // Find curvature of circle (k = 1 / R)
         double curvature = 0.0;
@@ -295,17 +308,18 @@ namespace regulated_pure_pursuit_controller
         //Travel forward and accordinging to the curvature
         else {
             //Constrain linear velocity
-            applyConstraints(
-                std::fabs(lookahead_dist - sqrt(carrot_dist2)),
-                lookahead_dist, curvature, speed,
-                costAtPose(robot_pose.pose.position.x, robot_pose.pose.position.y), linear_vel, sign);
+            applyConstraints(std::fabs(lookahead_dist - sqrt(carrot_dist2)),lookahead_dist, curvature, speed, costAtPose(robot_pose.pose.position.x, robot_pose.pose.position.y), linear_vel, sign);
             // Apply curvature to angular velocity after constraining linear velocity
             angular_vel = linear_vel * curvature;
-            //Ensure that angular_vel does not exceed user-defined amount
+            
+            // Ensure that angular_vel does not exceed user-defined amount
             angular_vel = std::clamp(angular_vel, -max_angular_vel_, max_angular_vel_);
         }
 
+        ROS_ERROR("The angle of the path is: %f", std::atan2(carrot_pose.pose.position.y, carrot_pose.pose.position.x));
+
         //Collision checking on this velocity heading
+        // TODO: Update this collision checking with the diff drive params minimum and maximum parameter speeds
         const double & carrot_dist = std::hypot(carrot_pose.pose.position.x, carrot_pose.pose.position.y);
         if (isCollisionImminent(robot_pose, linear_vel, angular_vel, carrot_dist)) {
             ROS_WARN("RegulatedPurePursuitController detected collision ahead!");
@@ -454,31 +468,36 @@ namespace regulated_pure_pursuit_controller
     }
 
 
-    double RegulatedPurePursuitController::getLookAheadDistance(
-        const geometry_msgs::Twist & speed)
+    double RegulatedPurePursuitController::getLookAheadDistance(const geometry_msgs::Twist & speed)
     {
         // If using velocity-scaled look ahead distances, find and clamp the dist
         // Else, use the static look ahead distance
         double lookahead_dist = lookahead_dist_;
-        if (use_velocity_scaled_lookahead_dist_) {
+        if (use_velocity_scaled_lookahead_dist_) 
+        {
+            if (use_diff_drive_params_max_lin_vel_ )
+            {
+                if (fabs(speed.linear.x) >= diff_drive_lin_val_ - 0.05)
+                {
+                    ROS_ERROR("Activating maximum lookahead since the maximum speed is crossed");
+                    lookahead_dist = max_lookahead_dist_;
+                    return lookahead_dist;
+                }
+            }
             lookahead_dist = fabs(speed.linear.x) * lookahead_time_;
             lookahead_dist = std::clamp(lookahead_dist, min_lookahead_dist_, max_lookahead_dist_);
         }
-
+        
+        ROS_ERROR("using scaled lookahead distance with a speed of: %f, %f", speed.linear.x, lookahead_dist);
         return lookahead_dist;
     }
 
 
-    bool RegulatedPurePursuitController::transformGlobalPlan(
-        const tf2_ros::Buffer& tf, const std::vector<geometry_msgs::PoseStamped>& global_plan,
-        const geometry_msgs::PoseStamped& global_pose, const costmap_2d::Costmap2D& costmap, const std::string& robot_base_frame, double max_plan_length,
-        std::vector<geometry_msgs::PoseStamped>& transformed_plan, int* current_goal_idx, geometry_msgs::TransformStamped* tf_plan_to_robot_frame)
+    bool RegulatedPurePursuitController::transformGlobalPlan(const tf2_ros::Buffer& tf, const std::vector<geometry_msgs::PoseStamped>& global_plan,const geometry_msgs::PoseStamped& global_pose, const costmap_2d::Costmap2D& costmap, const std::string& robot_base_frame, double max_plan_length, std::vector<geometry_msgs::PoseStamped>& transformed_plan, int* current_goal_idx, geometry_msgs::TransformStamped* tf_plan_to_robot_frame)
     {
         // this method is a slightly modified version of base_local_planner/goal_functions.h
         const geometry_msgs::PoseStamped& plan_pose = global_plan[0];
-
         transformed_plan.clear();
-
 
         try {
             if (global_plan_.empty()){
@@ -798,14 +817,11 @@ namespace regulated_pure_pursuit_controller
         return max_costmap_dim_meters / 2.0;
     }
 
-    void RegulatedPurePursuitController::getRobotVel(geometry_msgs::Twist& speed){
+    void RegulatedPurePursuitController::getRobotVel(geometry_msgs::Twist& speed)
+    {
         nav_msgs::Odometry robot_odom;
-
         odom_helper_.getOdom(robot_odom);
-
         speed.linear.x = robot_odom.twist.twist.linear.x;
         speed.angular.z = robot_odom.twist.twist.angular.z;
     }
-
-
 }
