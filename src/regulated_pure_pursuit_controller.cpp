@@ -263,7 +263,7 @@ namespace regulated_pure_pursuit_controller
         if (fabs(carrot_pose.pose.position.y) < 0.1 && fabs(carrot_pose.pose.position.x) > 0.0) {}
         else 
         {
-            ROS_ERROR("During turns restrict the lookahead");
+            ROS_WARN("During turns restrict the lookahead");
             // Set the lookahead distance to a minimum if the pose is far left or right
             lookahead_dist = min_lookahead_dist_;
             carrot_pose = getLookAheadPoint(lookahead_dist, transformed_plan);

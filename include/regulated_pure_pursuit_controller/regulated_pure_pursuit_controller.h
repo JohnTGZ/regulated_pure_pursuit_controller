@@ -140,10 +140,7 @@ namespace regulated_pure_pursuit_controller
                          const double &angle_to_path,
                          const geometry_msgs::Twist &curr_speed);
 
-    void applyConstraints(
-        const double &dist_error, const double &lookahead_dist,
-        const double &curvature, const geometry_msgs::Twist & /*curr_speed*/,
-        const double &pose_cost, double &linear_vel, double &sign);
+    void applyConstraints(const double &dist_error, const double &lookahead_dist, const double &curvature, const geometry_msgs::Twist & /*curr_speed*/, const double &pose_cost, double &linear_vel, double &sign);
 
     geometry_msgs::PoseStamped getLookAheadPoint(
         const double &lookahead_dist, const std::vector<geometry_msgs::PoseStamped> &transformed_plan);
