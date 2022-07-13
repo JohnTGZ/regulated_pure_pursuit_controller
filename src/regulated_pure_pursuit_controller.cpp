@@ -170,7 +170,7 @@ namespace regulated_pure_pursuit_controller
         ddr_->registerVariable<double>("cost_scaling_gain", &this->cost_scaling_gain_, "", 0.0, 10.0);
 
         // Collision avoidance
-        ddr_->registerVariable<double>("max_allowed_time_to_collision_up_to_carrot", &this->max_allowed_time_to_collision_up_to_carrot_, "", 0.0, 10.0);
+        ddr_->registerVariable<double>("max_allowed_time_to_collision_up_to_carrot", &this->max_allowed_time_to_collision_up_to_carrot_, "", 0.0, 20.0);
         ddr_->registerVariable<double>("goal_dist_tol", &this->goal_dist_tol_, "", 0.0, 4.0);
 
         ddr_->publishServicesTopics();
@@ -191,10 +191,7 @@ namespace regulated_pure_pursuit_controller
         return true;
     }
 
-    uint32_t RegulatedPurePursuitController::computeVelocityCommands(const geometry_msgs::PoseStamped &pose,
-                                                                     const geometry_msgs::TwistStamped &velocity,
-                                                                     geometry_msgs::TwistStamped &cmd_vel,
-                                                                     std::string &message)
+    uint32_t RegulatedPurePursuitController::computeVelocityCommands(const geometry_msgs::PoseStamped &pose, const geometry_msgs::TwistStamped &velocity, geometry_msgs::TwistStamped &cmd_vel, std::string &message)
     {
         if (!initialized_)
         {
@@ -259,7 +256,6 @@ namespace regulated_pure_pursuit_controller
 
         // Dynamically adjust look ahead distance based on the speed
         double lookahead_dist = getLookAheadDistance(speed);
-        ROS_INFO("The lookahead distance is currently: %f", lookahead_dist);
 
         // Get lookahead point and publish for visualization
         geometry_msgs::PoseStamped carrot_pose = getLookAheadPoint(lookahead_dist, transformed_plan);
@@ -331,6 +327,8 @@ namespace regulated_pure_pursuit_controller
         const double & carrot_dist = std::hypot(carrot_pose.pose.position.x, carrot_pose.pose.position.y);
         if (isCollisionImminent(robot_pose, linear_vel, angular_vel, carrot_dist)) {
             ROS_WARN("RegulatedPurePursuitController detected collision ahead!");
+            linear_vel = 0.0;
+            angular_vel = 0.0;
         }
 
         // populate and return message
@@ -376,6 +374,7 @@ namespace regulated_pure_pursuit_controller
 
     void RegulatedPurePursuitController::rotateToHeading(double &linear_vel, double &angular_vel, const double &angle_to_path, const geometry_msgs::Twist &curr_speed)
     {
+        ROS_ERROR("[regulated] : rotating to heading");
         // Rotate in place using max angular velocity / acceleration possible
         linear_vel = 0.0;
         const double sign = angle_to_path > 0.0 ? 1.0 : -1.0;
@@ -686,7 +685,6 @@ namespace regulated_pure_pursuit_controller
     bool RegulatedPurePursuitController::inCollision(const double &x, const double &y, const double &theta)
     {
         unsigned int mx, my;
-
         if (!costmap_->worldToMap(x, y, mx, my))
         {
             ROS_WARN_THROTTLE(1.0, "The dimensions of the costmap is too small to successfully check for "
@@ -695,16 +693,38 @@ namespace regulated_pure_pursuit_controller
             return false;
         }
 
-        double footprint_cost = costmap_model_->footprintCost(
-            x, y, theta, costmap_ros_->getRobotFootprint());
-
+        // The footprint here is the local robot footprint
+        double footprint_cost = costmap_model_->footprintCost(x, y, theta, costmap_ros_->getRobotFootprint());
+        
         if (footprint_cost == static_cast<double>(costmap_2d::NO_INFORMATION) && costmap_ros_->getLayeredCostmap()->isTrackingUnknown())
         {
             return false;
         }
 
-        // if occupied or unknown and not to traverse unknown space
-        return footprint_cost >= static_cast<double>(costmap_2d::LETHAL_OBSTACLE);
+        // ROS_INFO("THes footprint_cost is: %f", footprint_cost);
+
+        int count = 0;
+        for (int i = 0; i < footprint_cost_deep_history_.size(); i++)
+        {
+            if (footprint_cost_deep_history_[i] == -1.00)
+            {
+                count += 1;
+            }
+        }
+
+        if (footprint_cost_deep_history_.size() >= 10)
+        {
+            // In order to maintain a deep history, remove the first entry and update it with the new entry
+            footprint_cost_deep_history_.erase(footprint_cost_deep_history_.begin());
+            footprint_cost_deep_history_.push_back(footprint_cost);
+        }
+        else 
+        {
+            footprint_cost_deep_history_.push_back(footprint_cost);
+        }
+
+        bool answer = (footprint_cost >= static_cast<double>(costmap_2d::LETHAL_OBSTACLE) || count > 0);
+        return answer;
     }
 
     bool RegulatedPurePursuitController::isCollisionImminent(const geometry_msgs::PoseStamped &robot_pose, const double &linear_vel, const double &angular_vel, const double &carrot_dist)
@@ -736,8 +756,7 @@ namespace regulated_pure_pursuit_controller
             // via isosceles triangle r_max-r_max-resolution,
             // dividing by angular_velocity gives us a timestep.
             double max_radius = costmap_ros_->getLayeredCostmap()->getCircumscribedRadius();
-            projection_time =
-                2.0 * sin((costmap_->getResolution() / 2) / max_radius) / fabs(angular_vel);
+            projection_time = 2.0 * sin((costmap_->getResolution() / 2) / max_radius) / fabs(angular_vel);
         }
         else
         {
