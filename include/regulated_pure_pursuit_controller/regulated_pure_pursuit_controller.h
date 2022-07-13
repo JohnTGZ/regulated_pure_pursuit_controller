@@ -185,96 +185,100 @@ namespace regulated_pure_pursuit_controller
 
     void getRobotVel(geometry_msgs::Twist &speed);
 
-    void setSpeedLimit(
-        const double &speed_limit,
-        const bool &percentage);
+    void setSpeedLimit(const double & speed_limit, const bool & percentage);
 
-  private:
-    bool initialized_{false}; // indication of whether program has initialized
+    private:
+      bool initialized_{false}; //indication of whether program has initialized
 
-    /**
-     * User-defined params
-     */
-    std::string odom_topic_{"odom"};
+      /**
+       * User-defined params
+       */
+      std::string odom_topic_{"odom"};
 
-    double max_robot_pose_search_dist_;
-    double global_plan_prune_distance_{1.0};
+      double max_robot_pose_search_dist_;
+      double global_plan_prune_distance_{1.0};
+  
 
-    // Lookahead
-    bool use_velocity_scaled_lookahead_dist_;
-    double lookahead_time_;
-    double lookahead_dist_;
-    double min_lookahead_dist_, max_lookahead_dist_;
+      //Lookahead
+      bool use_diff_drive_params_max_lin_vel_;
+      double diff_drive_lin_val_;
+      bool use_velocity_scaled_lookahead_dist_;
+      double lookahead_time_;
+      double lookahead_dist_;
+      double min_lookahead_dist_, max_lookahead_dist_;
 
-    // Rotate to heading
-    bool use_rotate_to_heading_;
-    double rotate_to_heading_min_angle_;
-    double rotate_to_heading_angular_vel_;
-    double max_angular_accel_;
+      //Rotate to heading
+      bool use_rotate_to_heading_;
+      double rotate_to_heading_min_angle_;
+      double rotate_to_heading_angular_vel_;
+      double max_angular_accel_;
 
-    // Reversing
-    bool allow_reversing_;
+      //Reversing
+      bool allow_reversing_;
 
-    // Regulated linear velocity scaling
-    bool use_regulated_linear_velocity_scaling_;
-    double desired_linear_vel_;
-    double max_angular_vel_;
-    double min_approach_linear_velocity_;
-    double regulated_linear_scaling_min_radius_;
-    double regulated_linear_scaling_min_speed_;
+      //Regulated linear velocity scaling
+      bool use_regulated_linear_velocity_scaling_;
+      double desired_linear_vel_;
+      double max_angular_vel_;
+      double min_approach_linear_velocity_;
+      double regulated_linear_scaling_min_radius_;
+      double regulated_linear_scaling_min_speed_;
 
-    // Inflation cost scaling (Limit velocity by proximity to obstacles)
-    bool use_cost_regulated_linear_velocity_scaling_;
-    double inflation_cost_scaling_factor_;
-    double cost_scaling_dist_;
-    double cost_scaling_gain_;
+      //Inflation cost scaling (Limit velocity by proximity to obstacles)
+      bool use_cost_regulated_linear_velocity_scaling_;
+      double inflation_cost_scaling_factor_;
+      double cost_scaling_dist_;
+      double cost_scaling_gain_;
 
-    // Collision avoidance
-    double max_allowed_time_to_collision_up_to_carrot_;
+      //Collision avoidance
+      double max_allowed_time_to_collision_up_to_carrot_;
 
-    // Tolerances
-    double goal_dist_tol_{0.2};
-    int min_global_plan_complete_size_;
-    ros::Duration transform_tolerance_;
-    // Control frequency
-    double control_duration_;
+      //Tolerances
+      double goal_dist_tol_{0.2};
+      int min_global_plan_complete_size_;
+      ros::Duration transform_tolerance_;
+      //Control frequency
+      double control_duration_;
 
-    /**
-     * Pointer to other ROS Objects
-     */
-    tf::TransformListener listener;
-    tf2_ros::Buffer *tf_;
-    costmap_2d::Costmap2D *costmap_;
-    costmap_2d::Costmap2DROS *costmap_ros_;
-    base_local_planner::CostmapModel *costmap_model_; // For retrieving robot footprint cost
-    base_local_planner::OdometryHelperRos odom_helper_;
+      /**
+       * Pointer to other ROS Objects
+       */
+      tf::TransformListener listener;
+      tf2_ros::Buffer* tf_;
+      costmap_2d::Costmap2D* costmap_;
+      costmap_2d::Costmap2DROS* costmap_ros_;
+      base_local_planner::CostmapModel* costmap_model_; //For retrieving robot footprint cost
+      base_local_planner::OdometryHelperRos odom_helper_;
 
-    // for visualisation, publishers of global and local plan
-    /**
-     * @brief
-     *
-     */
-    ros::Publisher global_path_pub_, local_plan_pub_;
-    ros::Publisher carrot_pub_;
-    ros::Publisher carrot_arc_pub_;
+      // for visualisation, publishers of global and local plan
+      /**
+       * @brief 
+       * 
+       */
+      ros::Publisher global_path_pub_, local_plan_pub_;
+      ros::Publisher carrot_pub_;
+      ros::Publisher carrot_arc_pub_;
 
-    /**
-     * Configs
-     */
-    std::string global_frame_{"map"};
-    std::string robot_base_frame_{"base_footprint"};
 
-    /**
-     * Run-time variables
-     */
-    std::vector<geometry_msgs::PoseStamped> global_plan_; // Stores the current global plan
-    bool goal_reached_;
+      /**
+       * Configs
+       */
+      std::string global_frame_{"map"};
+      std::string robot_base_frame_{"base_footprint"};
 
-    std::unique_ptr<ddynamic_reconfigure::DDynamicReconfigure> ddr_;
+      /**
+       * Run-time variables
+       */
+      std::vector<geometry_msgs::PoseStamped> global_plan_; //Stores the current global plan
+      bool goal_reached_;
 
-    /**
-     * debug profiling
-     */
+      std::unique_ptr<ddynamic_reconfigure::DDynamicReconfigure> ddr_;
+
+      
+      /**
+       * debug profiling 
+       */
+
   };
 };
 
