@@ -546,13 +546,7 @@ namespace regulated_pure_pursuit_controller
             lookahead_dist = fabs(speed.linear.x) * lookahead_time_;
             lookahead_dist = std::clamp(lookahead_dist, min_lookahead_dist_, max_lookahead_dist_);
         }
-<<<<<<< HEAD
-        
-        // ROS_ERROR("using scaled lookahead distance with a speed of: %f, %f", speed.linear.x, lookahead_dist);
-=======
-
         ROS_ERROR("using scaled lookahead distance with a speed of: %f, %f", speed.linear.x, lookahead_dist);
->>>>>>> 6e2ce77bd0b5b5237589aa0c2814bcfd91113165
         return lookahead_dist;
     }
 
