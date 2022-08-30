@@ -63,6 +63,7 @@ namespace regulated_pure_pursuit_controller
         local_plan_pub_ = nh.advertise<nav_msgs::Path>("local_plan", 1);
         carrot_pub_ = nh.advertise<geometry_msgs::PointStamped>("lookahead_point", 1);
         carrot_arc_pub_ = nh.advertise<nav_msgs::Path>("lookahead_collision_arc", 1);
+        kink_pub_ = nh.advertise<geometry_msgs::PointStamped>("kink_point", 1);
     }
 
     void RegulatedPurePursuitController::initParams(ros::NodeHandle &nh)
@@ -104,7 +105,7 @@ namespace regulated_pure_pursuit_controller
 
         ROS_WARN("[regulated] : The parameters in regulated pure pursuit are as follows: %d, %f", use_diff_drive_params_max_lin_vel_, diff_drive_lin_val_);
 
-        //Speed
+        // Speed
         nh.param<double>("desired_linear_vel", desired_linear_vel_, 0.5);
         nh.param<double>("max_angular_vel", max_angular_vel_, 1.5);
         nh.param<double>("min_approach_linear_velocity", min_approach_linear_velocity_, 0.05);
@@ -204,18 +205,13 @@ namespace regulated_pure_pursuit_controller
             return mbf_msgs::ExePathResult::NOT_INITIALIZED;
         }
 
-        static uint32_t seq = 0;
-        cmd_vel.header.seq = seq++;
-        cmd_vel.header.stamp = ros::Time::now();
-        cmd_vel.header.frame_id = robot_base_frame_;
-        cmd_vel.twist.linear.x = cmd_vel.twist.linear.y = cmd_vel.twist.angular.z = 0;
+        // Update the header of the cmd_vel message
+        updateHeaderOfCmdVel(cmd_vel);
 
         // Set the goal reached to false
         goal_reached_ = false;
 
-        double linear_vel, angular_vel;
-
-        // Get current pose of robot
+        // Get current pose of robot in
         geometry_msgs::PoseStamped robot_pose;
         costmap_ros_->getRobotPose(robot_pose);
 
@@ -230,8 +226,7 @@ namespace regulated_pure_pursuit_controller
         std::vector<geometry_msgs::PoseStamped> transformed_plan;
         int goal_idx;
         geometry_msgs::TransformStamped tf_plan_to_robot_frame;
-        if (!transformGlobalPlan(*tf_, global_plan_, robot_pose, *costmap_, robot_base_frame_, max_lookahead_dist_,
-                                 transformed_plan, &goal_idx, &tf_plan_to_robot_frame))
+        if (!transformGlobalPlan(*tf_, global_plan_, robot_pose, *costmap_, robot_base_frame_, max_lookahead_dist_, transformed_plan, &goal_idx, &tf_plan_to_robot_frame))
         {
             ROS_WARN("Could not transform the global plan to the frame of the controller");
             message = "Could not transform the global plan to the frame of the controller";
@@ -260,6 +255,7 @@ namespace regulated_pure_pursuit_controller
 
         // Dynamically adjust look ahead distance based on the speed
         double lookahead_dist = getLookAheadDistance(speed);
+        ROS_INFO("[RegulatedPurePursuit] : The lookahead distance is: %f", lookahead_dist);
 
         // Get lookahead point and publish for visualization
         geometry_msgs::PoseStamped carrot_pose = getLookAheadPoint(lookahead_dist, transformed_plan);
@@ -277,10 +273,25 @@ namespace regulated_pure_pursuit_controller
         // }
         else 
         {
-            ROS_WARN("During turns restrict the lookahead");
+            ROS_ERROR("During turns restrict the lookahead");
             // Set the lookahead distance to a minimum if the pose is far left or right
             lookahead_dist = min_lookahead_dist_;
             carrot_pose = getLookAheadPoint(lookahead_dist, transformed_plan);
+        }
+
+        geometry_msgs::PointStamped kink_message;
+        if (getAlternateKinkLookAheadDistance(transformed_plan, kink_message))
+        {
+            double kinked_dist = std::hypot(kink_message.point.x, kink_message.point.y);
+            double carrot_dist = std::hypot(carrot_pose.pose.position.x, carrot_pose.pose.position.y);
+            ROS_WARN("[RegulatedPurePursuit] : Kinked distance is: %f carrot distance is: %f", kinked_dist, carrot_dist);
+            if (kinked_dist < carrot_dist && kinked_dist > min_lookahead_dist_ - 0.2)
+            {
+                ROS_INFO("[RegulatedPurePursuit] : Replacing the original carrot with the kinked carrot");
+                carrot_pose.pose.position.x = kink_message.point.x;
+                carrot_pose.pose.position.y = kink_message.point.y;
+                carrot_pose.pose.position.z = kink_message.point.z;
+            }
         }
 
         carrot_pub_.publish(createCarrotMsg(carrot_pose));
@@ -302,45 +313,47 @@ namespace regulated_pure_pursuit_controller
             sign = carrot_pose.pose.position.x >= 0.0 ? 1.0 : -1.0;
         }
 
+        double linear_vel, angular_vel;
         linear_vel = desired_linear_vel_;
 
         // Make sure we're in compliance with basic constraints
         double angle_to_heading;
 
-        // If robot should use_rotate_to_heading_ && dist_to_goal < goal_dist_tol_
         if (shouldRotateToGoalHeading(carrot_pose))
         {
+            // If robot should use_rotate_to_heading_ && dist_to_goal < goal_dist_tol_
             ROS_INFO("Going to rotate to the goal heading");
             double angle_to_goal = tf2::getYaw(transformed_plan.back().pose.orientation);
             rotateToHeading(linear_vel, angular_vel, angle_to_goal, speed);
         }
-        // If robot should use_rotate_to_heading_ && angle_to_heading > rotate_to_heading_min_angle_
         else if (shouldRotateToPath(carrot_pose, angle_to_heading))
         {
+            // If robot should use_rotate_to_heading_ && angle_to_heading > rotate_to_heading_min_angle_
             ROS_INFO("Going to rotate to the path heading");
             rotateToHeading(linear_vel, angular_vel, angle_to_heading, speed);
         }
-        // Travel forward and accordinging to the curvature
         else
         {
+            // Travel forward and accordinging to the curvature
             ROS_INFO("Simply respecting the curvature of the path");
             // Constrain linear velocity
             applyConstraints(std::fabs(lookahead_dist - sqrt(carrot_dist2)), lookahead_dist, curvature, speed, costAtPose(robot_pose.pose.position.x, robot_pose.pose.position.y), linear_vel, sign);
 
             // Apply curvature to angular velocity after constraining linear velocity
             angular_vel = linear_vel * curvature;
-            
+
             // Ensure that angular_vel does not exceed user-defined amount
             angular_vel = std::clamp(angular_vel, -max_angular_vel_, max_angular_vel_);
         }
 
         // ROS_ERROR("The angle of the path is: %f", std::atan2(carrot_pose.pose.position.y, carrot_pose.pose.position.x));
 
-        //Collision checking on this velocity heading
-        // TODO: Update this collision checking with the diff drive params minimum and maximum parameter speeds
-        const double & carrot_dist = std::hypot(carrot_pose.pose.position.x, carrot_pose.pose.position.y);
-        if (isCollisionImminent(robot_pose, linear_vel, angular_vel, carrot_dist)) {
-            ROS_WARN("RegulatedPurePursuitController detected collision ahead!");
+        // Collision checking on this velocity heading
+        //  TODO: Update this collision checking with the diff drive params minimum and maximum parameter speeds
+        const double &carrot_dist = std::hypot(carrot_pose.pose.position.x, carrot_pose.pose.position.y);
+        if (isCollisionImminent(robot_pose, linear_vel, angular_vel, carrot_dist))
+        {
+            ROS_WARN_THROTTLE(5, "[RegulatedPurePursuitController] : Detected collision ahead!");
             linear_vel = 0.0;
             angular_vel = 0.0;
         }
@@ -376,14 +389,18 @@ namespace regulated_pure_pursuit_controller
     {
         // Whether we should rotate robot to rough path heading
         angle_to_path = std::atan2(carrot_pose.pose.position.y, carrot_pose.pose.position.x);
-        return use_rotate_to_heading_ && fabs(angle_to_path) > rotate_to_heading_min_angle_;
+        bool answer = (use_rotate_to_heading_ && fabs(angle_to_path) > rotate_to_heading_min_angle_);
+        ROS_INFO("[Regulated Pure Pursuit] : The answer of should RotateToPath is: %d", answer);
+        return answer;
     }
 
     bool RegulatedPurePursuitController::shouldRotateToGoalHeading(const geometry_msgs::PoseStamped &carrot_pose)
     {
         // Whether we should rotate robot to goal heading
         double dist_to_goal = std::hypot(carrot_pose.pose.position.x, carrot_pose.pose.position.y);
-        return use_rotate_to_heading_ && dist_to_goal < goal_dist_tol_;
+        bool answer = (use_rotate_to_heading_ && dist_to_goal < goal_dist_tol_);
+        ROS_INFO("[Regulated Pure Pursuit] : The answer of should shouldRotateToGoalHeading is: %d", answer);
+        return answer;
     }
 
     void RegulatedPurePursuitController::rotateToHeading(double &linear_vel, double &angular_vel, const double &angle_to_path, const geometry_msgs::Twist &curr_speed)
@@ -472,9 +489,8 @@ namespace regulated_pure_pursuit_controller
     geometry_msgs::PoseStamped RegulatedPurePursuitController::getLookAheadPoint(const double &lookahead_dist, const std::vector<geometry_msgs::PoseStamped> &transformed_plan)
     {
         // Find the first pose which is at a distance greater than the lookahead distance
-        auto goal_pose_it = std::find_if(
-            transformed_plan.begin(), transformed_plan.end(), [&](const auto &ps)
-            { return std::hypot(ps.pose.position.x, ps.pose.position.y) >= lookahead_dist; });
+        auto goal_pose_it = std::find_if(transformed_plan.begin(), transformed_plan.end(), [&](const auto &ps)
+                                         { return std::hypot(ps.pose.position.x, ps.pose.position.y) >= lookahead_dist; });
 
         // If the number of poses is not far enough, take the last pose
         if (goal_pose_it == transformed_plan.end())
@@ -485,15 +501,40 @@ namespace regulated_pure_pursuit_controller
         return *goal_pose_it;
     }
 
+    bool RegulatedPurePursuitController::getAlternateKinkLookAheadDistance(const std::vector<geometry_msgs::PoseStamped> &transformed_plan, geometry_msgs::PointStamped &kink_message)
+    {
+        // Check the first point thru third last point to find a kink
+        for (unsigned int i = 0; i < transformed_plan.size() - 2; i++)
+        {
+            double numerator = getLength(transformed_plan[i], transformed_plan[i + 1]) + getLength(transformed_plan[i + 1], transformed_plan[i + 2]) - getLength(transformed_plan[i], transformed_plan[i + 2]);
+            double denominator = 2.0 * getLength(transformed_plan[i], transformed_plan[i + 1]) * getLength(transformed_plan[i + 1], transformed_plan[i + 2]);
+            double angle = cosh(numerator / denominator);
+            double angle_in_degrees = angle / (2.0 * M_PI) * 360.0;
+            if (angle_in_degrees > 210 || angle_in_degrees < 90)
+            {
+                std::cout << "The angle in degrees is: " << angle_in_degrees << std::endl;
+                // publish a pose
+                kink_message.header.stamp = ros::Time::now();
+                kink_message.header.frame_id = transformed_plan[i].header.frame_id;
+                kink_message.point.x = transformed_plan[i + 1].pose.position.x;
+                kink_message.point.y = transformed_plan[i + 1].pose.position.y;
+                kink_message.point.z = 0.0;
+                kink_pub_.publish(kink_message);
+                return true;
+            }
+        }
 
-    double RegulatedPurePursuitController::getLookAheadDistance(const geometry_msgs::Twist & speed)
+        return false;
+    }
+
+    double RegulatedPurePursuitController::getLookAheadDistance(const geometry_msgs::Twist &speed)
     {
         // If using velocity-scaled look ahead distances, find and clamp the dist
         // Else, use the static look ahead distance
         double lookahead_dist = lookahead_dist_;
-        if (use_velocity_scaled_lookahead_dist_) 
+        if (use_velocity_scaled_lookahead_dist_)
         {
-            if (use_diff_drive_params_max_lin_vel_ )
+            if (use_diff_drive_params_max_lin_vel_)
             {
                 if (fabs(speed.linear.x) >= diff_drive_lin_val_ - 0.05)
                 {
@@ -505,20 +546,26 @@ namespace regulated_pure_pursuit_controller
             lookahead_dist = fabs(speed.linear.x) * lookahead_time_;
             lookahead_dist = std::clamp(lookahead_dist, min_lookahead_dist_, max_lookahead_dist_);
         }
+<<<<<<< HEAD
         
         // ROS_ERROR("using scaled lookahead distance with a speed of: %f, %f", speed.linear.x, lookahead_dist);
+=======
+
+        ROS_ERROR("using scaled lookahead distance with a speed of: %f, %f", speed.linear.x, lookahead_dist);
+>>>>>>> 6e2ce77bd0b5b5237589aa0c2814bcfd91113165
         return lookahead_dist;
     }
 
-
-    bool RegulatedPurePursuitController::transformGlobalPlan(const tf2_ros::Buffer& tf, const std::vector<geometry_msgs::PoseStamped>& global_plan,const geometry_msgs::PoseStamped& global_pose, const costmap_2d::Costmap2D& costmap, const std::string& robot_base_frame, double max_plan_length, std::vector<geometry_msgs::PoseStamped>& transformed_plan, int* current_goal_idx, geometry_msgs::TransformStamped* tf_plan_to_robot_frame)
+    bool RegulatedPurePursuitController::transformGlobalPlan(const tf2_ros::Buffer &tf, const std::vector<geometry_msgs::PoseStamped> &global_plan, const geometry_msgs::PoseStamped &global_pose, const costmap_2d::Costmap2D &costmap, const std::string &robot_base_frame, double max_plan_length, std::vector<geometry_msgs::PoseStamped> &transformed_plan, int *current_goal_idx, geometry_msgs::TransformStamped *tf_plan_to_robot_frame)
     {
         // this method is a slightly modified version of base_local_planner/goal_functions.h
-        const geometry_msgs::PoseStamped& plan_pose = global_plan[0];
+        const geometry_msgs::PoseStamped &plan_pose = global_plan[0];
         transformed_plan.clear();
 
-        try {
-            if (global_plan_.empty()){
+        try
+        {
+            if (global_plan_.empty())
+            {
                 ROS_ERROR("Received plan with zero length");
                 *current_goal_idx = 0;
                 return false;
@@ -708,7 +755,7 @@ namespace regulated_pure_pursuit_controller
 
         // The footprint here is the local robot footprint
         double footprint_cost = costmap_model_->footprintCost(x, y, theta, costmap_ros_->getRobotFootprint());
-        
+
         if (footprint_cost == static_cast<double>(costmap_2d::NO_INFORMATION) && costmap_ros_->getLayeredCostmap()->isTrackingUnknown())
         {
             return false;
@@ -731,7 +778,7 @@ namespace regulated_pure_pursuit_controller
             footprint_cost_deep_history_.erase(footprint_cost_deep_history_.begin());
             footprint_cost_deep_history_.push_back(footprint_cost);
         }
-        else 
+        else
         {
             footprint_cost_deep_history_.push_back(footprint_cost);
         }
@@ -850,11 +897,28 @@ namespace regulated_pure_pursuit_controller
         return max_costmap_dim_meters / 2.0;
     }
 
-    void RegulatedPurePursuitController::getRobotVel(geometry_msgs::Twist& speed)
+    void RegulatedPurePursuitController::getRobotVel(geometry_msgs::Twist &speed)
     {
         nav_msgs::Odometry robot_odom;
         odom_helper_.getOdom(robot_odom);
         speed.linear.x = robot_odom.twist.twist.linear.x;
         speed.angular.z = robot_odom.twist.twist.angular.z;
+    }
+
+    void RegulatedPurePursuitController::updateHeaderOfCmdVel(geometry_msgs::TwistStamped &cmd_vel)
+    {
+        // Defined as static so the memory address of this variable is maintained even when the function goes out of scope
+        static uint32_t seq = 0;
+        cmd_vel.header.seq = seq++;
+        cmd_vel.header.stamp = ros::Time::now();
+        cmd_vel.header.frame_id = robot_base_frame_;
+        cmd_vel.twist.linear.x = cmd_vel.twist.linear.y = cmd_vel.twist.angular.z = 0;
+    }
+
+    double RegulatedPurePursuitController::getLength(const geometry_msgs::PoseStamped pose_one, const geometry_msgs::PoseStamped pose_two)
+    {
+        double answer = sqrt(std::hypot(fabs(pose_one.pose.position.x - pose_two.pose.position.x), fabs(pose_one.pose.position.y - pose_two.pose.position.y)));
+        // std::cout << "the distance between " << pose_one.pose.position.x << ", " << pose_one.pose.position.y << " : " << pose_two.pose.position.x << ", " << pose_two.pose.position.y << " is "<< answer << std::endl;
+        return answer;
     }
 }

@@ -140,10 +140,15 @@ namespace regulated_pure_pursuit_controller
                          const double &angle_to_path,
                          const geometry_msgs::Twist &curr_speed);
 
-    void applyConstraints(const double &dist_error, const double &lookahead_dist, const double &curvature, const geometry_msgs::Twist & /*curr_speed*/, const double &pose_cost, double &linear_vel, double &sign);
+    void applyConstraints(
+        const double &dist_error, const double &lookahead_dist,
+        const double &curvature, const geometry_msgs::Twist & /*curr_speed*/,
+        const double &pose_cost, double &linear_vel, double &sign);
 
     geometry_msgs::PoseStamped getLookAheadPoint(
         const double &lookahead_dist, const std::vector<geometry_msgs::PoseStamped> &transformed_plan);
+
+    bool getAlternateKinkLookAheadDistance(const std::vector<geometry_msgs::PoseStamped> &transformed_plan, geometry_msgs::PointStamped& kink_message);
 
     double getLookAheadDistance(const geometry_msgs::Twist &speed);
 
@@ -181,6 +186,10 @@ namespace regulated_pure_pursuit_controller
     geometry_msgs::PointStamped createCarrotMsg(const geometry_msgs::PoseStamped &carrot_pose);
 
     void getRobotVel(geometry_msgs::Twist &speed);
+
+    void updateHeaderOfCmdVel(geometry_msgs::TwistStamped &cmd_vel);
+
+    double getLength(const geometry_msgs::PoseStamped pose_one, const geometry_msgs::PoseStamped pose_two);
 
     void setSpeedLimit(const double &speed_limit, const bool &percentage);
 
@@ -255,6 +264,7 @@ namespace regulated_pure_pursuit_controller
     ros::Publisher global_path_pub_, local_plan_pub_;
     ros::Publisher carrot_pub_;
     ros::Publisher carrot_arc_pub_;
+    ros::Publisher kink_pub_;
 
     /**
      * Configs
