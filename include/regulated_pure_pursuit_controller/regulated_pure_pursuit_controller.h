@@ -232,6 +232,7 @@ namespace regulated_pure_pursuit_controller
     // Tolerances
     double goal_dist_tol_{0.2};
     int min_global_plan_complete_size_;
+    int deep_history_num_;
     ros::Duration transform_tolerance_;
     // Control frequency
     double control_duration_;

@@ -81,6 +81,8 @@ namespace regulated_pure_pursuit_controller
         nh.param<double>("min_lookahead_dist", min_lookahead_dist_, 0.3);
         nh.param<double>("max_lookahead_dist", max_lookahead_dist_, 0.9);
 
+        nh.param<int>("deep_history_num", deep_history_num_, 50);
+
         // Rotate to heading param
         nh.param<bool>("use_rotate_to_heading", use_rotate_to_heading_, false);
         nh.param<double>("rotate_to_heading_min_angle", rotate_to_heading_min_angle_, 0.785);
@@ -142,6 +144,8 @@ namespace regulated_pure_pursuit_controller
         ddr_.reset(new ddynamic_reconfigure::DDynamicReconfigure(nh));
         ddr_->registerVariable<double>("lookahead_time", &this->lookahead_time_, "", 0.0, 20.0);
         ddr_->registerVariable<double>("lookahead_dist", &this->lookahead_dist_, "", 0.0, 20.0);
+
+        ddr_->registerVariable<int>("deep_history_num", &this->deep_history_num_, "The number of clear cost in the previous readings", 0, 100);
 
         ddr_->registerVariable<bool>("use_velocity_scaled_lookahead_dist", &this->use_velocity_scaled_lookahead_dist_);
         ddr_->registerVariable<double>("min_lookahead_dist", &this->min_lookahead_dist_, "", 0.0, 5.0);
@@ -260,7 +264,17 @@ namespace regulated_pure_pursuit_controller
         // Get lookahead point and publish for visualization
         geometry_msgs::PoseStamped carrot_pose = getLookAheadPoint(lookahead_dist, transformed_plan);
         ROS_ERROR("THe current x: %0.3f and current y: %0.3f", carrot_pose.pose.position.x, carrot_pose.pose.position.y);
-        if (fabs(carrot_pose.pose.position.y) < 0.1 && fabs(carrot_pose.pose.position.x) > 0.0) {}
+        if (fabs(carrot_pose.pose.position.y) < 0.1 && fabs(carrot_pose.pose.position.x) > 0.0) 
+        {
+
+        }
+        // else if (fabs(carrot_pose.pose.position.y) > 0.1 && fabs(carrot_pose.pose.position.x) > 0.1)
+        // {
+        //     ROS_WARN("Limiting the lookahead");
+        //     // Set the lookahead distance to a minimum if the pose is far left or right
+        //     lookahead_dist = (min_lookahead_dist_ + max_lookahead_dist_) / 2;
+        //     carrot_pose = getLookAheadPoint(lookahead_dist, transformed_plan);
+        // }
         else 
         {
             ROS_WARN("During turns restrict the lookahead");
@@ -320,7 +334,7 @@ namespace regulated_pure_pursuit_controller
             angular_vel = std::clamp(angular_vel, -max_angular_vel_, max_angular_vel_);
         }
 
-        ROS_ERROR("The angle of the path is: %f", std::atan2(carrot_pose.pose.position.y, carrot_pose.pose.position.x));
+        // ROS_ERROR("The angle of the path is: %f", std::atan2(carrot_pose.pose.position.y, carrot_pose.pose.position.x));
 
         //Collision checking on this velocity heading
         // TODO: Update this collision checking with the diff drive params minimum and maximum parameter speeds
@@ -455,8 +469,7 @@ namespace regulated_pure_pursuit_controller
      */
 
     // Get lookahead point on the global plan
-    geometry_msgs::PoseStamped RegulatedPurePursuitController::getLookAheadPoint(
-        const double &lookahead_dist, const std::vector<geometry_msgs::PoseStamped> &transformed_plan)
+    geometry_msgs::PoseStamped RegulatedPurePursuitController::getLookAheadPoint(const double &lookahead_dist, const std::vector<geometry_msgs::PoseStamped> &transformed_plan)
     {
         // Find the first pose which is at a distance greater than the lookahead distance
         auto goal_pose_it = std::find_if(
@@ -493,7 +506,7 @@ namespace regulated_pure_pursuit_controller
             lookahead_dist = std::clamp(lookahead_dist, min_lookahead_dist_, max_lookahead_dist_);
         }
         
-        ROS_ERROR("using scaled lookahead distance with a speed of: %f, %f", speed.linear.x, lookahead_dist);
+        // ROS_ERROR("using scaled lookahead distance with a speed of: %f, %f", speed.linear.x, lookahead_dist);
         return lookahead_dist;
     }
 
@@ -712,7 +725,7 @@ namespace regulated_pure_pursuit_controller
             }
         }
 
-        if (footprint_cost_deep_history_.size() >= 10)
+        if (footprint_cost_deep_history_.size() >= deep_history_num_)
         {
             // In order to maintain a deep history, remove the first entry and update it with the new entry
             footprint_cost_deep_history_.erase(footprint_cost_deep_history_.begin());
@@ -722,6 +735,9 @@ namespace regulated_pure_pursuit_controller
         {
             footprint_cost_deep_history_.push_back(footprint_cost);
         }
+
+
+        ROS_INFO("The count is: %d", count);
 
         bool answer = (footprint_cost >= static_cast<double>(costmap_2d::LETHAL_OBSTACLE) || count > 0);
         return answer;
