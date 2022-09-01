@@ -778,8 +778,6 @@ namespace regulated_pure_pursuit_controller
         }
 
 
-        ROS_INFO("The count is: %d", count);
-
         bool answer = (footprint_cost >= static_cast<double>(costmap_2d::LETHAL_OBSTACLE) || count > 0);
         return answer;
     }
