@@ -390,7 +390,7 @@ namespace regulated_pure_pursuit_controller
         // Whether we should rotate robot to rough path heading
         angle_to_path = std::atan2(carrot_pose.pose.position.y, carrot_pose.pose.position.x);
         bool answer = (use_rotate_to_heading_ && fabs(angle_to_path) > rotate_to_heading_min_angle_);
-        ROS_INFO("[Regulated Pure Pursuit] : The answer of should RotateToPath is: %d", answer);
+        ROS_INFO("[Regulated Pure Pursuit] : The answer of should RotateToPath is: %d, because of use_rotate_to_heading: %d and the angle to path: %f, and the min_angle: %f", answer, use_rotate_to_heading_, fabs(angle_to_path), rotate_to_heading_min_angle_);
         return answer;
     }
 
@@ -399,7 +399,7 @@ namespace regulated_pure_pursuit_controller
         // Whether we should rotate robot to goal heading
         double dist_to_goal = std::hypot(carrot_pose.pose.position.x, carrot_pose.pose.position.y);
         bool answer = (use_rotate_to_heading_ && dist_to_goal < goal_dist_tol_);
-        ROS_INFO("[Regulated Pure Pursuit] : The answer of should shouldRotateToGoalHeading is: %d", answer);
+        ROS_INFO("[Regulated Pure Pursuit] : The answer of should shouldRotateToGoalHeading is: %d, because of use_rotate_to_heading: %d and the distance to goal: %f, and the goal distance: %f", answer, use_rotate_to_heading_, fabs(dist_to_goal), goal_dist_tol_);
         return answer;
     }
 
