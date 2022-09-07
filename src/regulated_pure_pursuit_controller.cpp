@@ -280,7 +280,8 @@ namespace regulated_pure_pursuit_controller
         }
 
         geometry_msgs::PointStamped kink_message;
-        if (getAlternateKinkLookAheadDistance(transformed_plan, kink_message))
+        // if (getAlternateKinkLookAheadDistance(transformed_plan, kink_message))
+        if (false)
         {
             double kinked_dist = std::hypot(kink_message.point.x, kink_message.point.y);
             double carrot_dist = std::hypot(carrot_pose.pose.position.x, carrot_pose.pose.position.y);
