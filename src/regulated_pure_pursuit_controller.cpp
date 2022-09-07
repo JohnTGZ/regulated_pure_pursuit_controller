@@ -259,7 +259,7 @@ namespace regulated_pure_pursuit_controller
 
         // Get lookahead point and publish for visualization
         geometry_msgs::PoseStamped carrot_pose = getLookAheadPoint(lookahead_dist, transformed_plan);
-        ROS_ERROR("THe current x: %0.3f and current y: %0.3f", carrot_pose.pose.position.x, carrot_pose.pose.position.y);
+        // ROS_INFO("THe current x: %0.3f and current y: %0.3f", carrot_pose.pose.position.x, carrot_pose.pose.position.y);
         if (fabs(carrot_pose.pose.position.y) < 0.1 && fabs(carrot_pose.pose.position.x) > 0.0) 
         {
 
@@ -323,20 +323,18 @@ namespace regulated_pure_pursuit_controller
         if (shouldRotateToGoalHeading(carrot_pose))
         {
             // If robot should use_rotate_to_heading_ && dist_to_goal < goal_dist_tol_
-            ROS_INFO("Going to rotate to the goal heading");
             double angle_to_goal = tf2::getYaw(transformed_plan.back().pose.orientation);
             rotateToHeading(linear_vel, angular_vel, angle_to_goal, speed);
         }
         else if (shouldRotateToPath(carrot_pose, angle_to_heading))
         {
             // If robot should use_rotate_to_heading_ && angle_to_heading > rotate_to_heading_min_angle_
-            ROS_INFO("Going to rotate to the path heading");
             rotateToHeading(linear_vel, angular_vel, angle_to_heading, speed);
         }
         else
         {
             // Travel forward and accordinging to the curvature
-            ROS_INFO("Simply respecting the curvature of the path");
+            // ROS_INFO("Simply respecting the curvature of the path");
             // Constrain linear velocity
             applyConstraints(std::fabs(lookahead_dist - sqrt(carrot_dist2)), lookahead_dist, curvature, speed, costAtPose(robot_pose.pose.position.x, robot_pose.pose.position.y), linear_vel, sign);
 
@@ -391,7 +389,7 @@ namespace regulated_pure_pursuit_controller
         // Whether we should rotate robot to rough path heading
         angle_to_path = std::atan2(carrot_pose.pose.position.y, carrot_pose.pose.position.x);
         bool answer = (use_rotate_to_heading_ && fabs(angle_to_path) > rotate_to_heading_min_angle_);
-        ROS_INFO("[Regulated Pure Pursuit] : The answer of should RotateToPath is: %d, because of use_rotate_to_heading: %d and the angle to path: %f, and the min_angle: %f", answer, use_rotate_to_heading_, fabs(angle_to_path), rotate_to_heading_min_angle_);
+        // ROS_INFO("[Regulated Pure Pursuit] : The answer of should RotateToPath is: %d, because of use_rotate_to_heading: %d and the angle to path: %f, and the min_angle: %f", answer, use_rotate_to_heading_, fabs(angle_to_path), rotate_to_heading_min_angle_);
         return answer;
     }
 
@@ -400,7 +398,7 @@ namespace regulated_pure_pursuit_controller
         // Whether we should rotate robot to goal heading
         double dist_to_goal = std::hypot(carrot_pose.pose.position.x, carrot_pose.pose.position.y);
         bool answer = (use_rotate_to_heading_ && dist_to_goal < goal_dist_tol_);
-        ROS_INFO("[Regulated Pure Pursuit] : The answer of should shouldRotateToGoalHeading is: %d, because of use_rotate_to_heading: %d and the distance to goal: %f, and the goal distance: %f", answer, use_rotate_to_heading_, fabs(dist_to_goal), goal_dist_tol_);
+        // ROS_INFO("[Regulated Pure Pursuit] : The answer of should shouldRotateToGoalHeading is: %d, because of use_rotate_to_heading: %d and the distance to goal: %f, and the goal distance: %f", answer, use_rotate_to_heading_, fabs(dist_to_goal), goal_dist_tol_);
         return answer;
     }
 
