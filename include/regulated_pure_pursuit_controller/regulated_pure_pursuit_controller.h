@@ -196,6 +196,8 @@ namespace regulated_pure_pursuit_controller
   private:
     bool initialized_{false}; // indication of whether program has initialized
 
+    bool get_alternate_lookahead_dist_{false};
+
     /**
      * User-defined params
      */

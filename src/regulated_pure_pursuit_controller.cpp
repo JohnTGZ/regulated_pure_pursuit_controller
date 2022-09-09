@@ -174,6 +174,8 @@ namespace regulated_pure_pursuit_controller
         ddr_->registerVariable<double>("cost_scaling_dist", &this->cost_scaling_dist_, "", 0.0, 10.0);
         ddr_->registerVariable<double>("cost_scaling_gain", &this->cost_scaling_gain_, "", 0.0, 10.0);
 
+        ddr_->registerVariable<bool>("get_alternate_lookahead_dist", &this->get_alternate_lookahead_dist_, "", false);
+
         // Collision avoidance
         ddr_->registerVariable<double>("max_allowed_time_to_collision_up_to_carrot", &this->max_allowed_time_to_collision_up_to_carrot_, "", 0.0, 20.0);
         ddr_->registerVariable<double>("goal_dist_tol", &this->goal_dist_tol_, "", 0.0, 4.0);
@@ -280,8 +282,7 @@ namespace regulated_pure_pursuit_controller
         }
 
         geometry_msgs::PointStamped kink_message;
-        // if (getAlternateKinkLookAheadDistance(transformed_plan, kink_message))
-        if (false)
+        if (get_alternate_lookahead_dist_ && getAlternateKinkLookAheadDistance(transformed_plan, kink_message))
         {
             double kinked_dist = std::hypot(kink_message.point.x, kink_message.point.y);
             double carrot_dist = std::hypot(carrot_pose.pose.position.x, carrot_pose.pose.position.y);
