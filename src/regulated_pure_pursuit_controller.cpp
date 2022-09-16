@@ -257,7 +257,7 @@ namespace regulated_pure_pursuit_controller
 
         // Dynamically adjust look ahead distance based on the speed
         double lookahead_dist = getLookAheadDistance(speed);
-        ROS_INFO("[RegulatedPurePursuit] : The lookahead distance is: %f", lookahead_dist);
+        // ROS_INFO("[RegulatedPurePursuit] : The lookahead distance is: %f", lookahead_dist);
 
         // Get lookahead point and publish for visualization
         geometry_msgs::PoseStamped carrot_pose = getLookAheadPoint(lookahead_dist, transformed_plan);
@@ -275,7 +275,7 @@ namespace regulated_pure_pursuit_controller
         // }
         else 
         {
-            ROS_ERROR("During turns restrict the lookahead");
+            // ROS_ERROR("During turns restrict the lookahead");
             // Set the lookahead distance to a minimum if the pose is far left or right
             lookahead_dist = min_lookahead_dist_;
             carrot_pose = getLookAheadPoint(lookahead_dist, transformed_plan);
@@ -538,7 +538,7 @@ namespace regulated_pure_pursuit_controller
             {
                 if (fabs(speed.linear.x) >= diff_drive_lin_val_ - 0.05)
                 {
-                    ROS_ERROR("Activating maximum lookahead since the maximum speed is crossed");
+                    // ROS_ERROR("Activating maximum lookahead since the msaximum speed is crossed");
                     lookahead_dist = max_lookahead_dist_;
                     return lookahead_dist;
                 }
