@@ -262,9 +262,8 @@ namespace regulated_pure_pursuit_controller
         // Get lookahead point and publish for visualization
         geometry_msgs::PoseStamped carrot_pose = getLookAheadPoint(lookahead_dist, transformed_plan);
         // ROS_INFO("THe current x: %0.3f and current y: %0.3f", carrot_pose.pose.position.x, carrot_pose.pose.position.y);
-        if (fabs(carrot_pose.pose.position.y) < 0.1 && fabs(carrot_pose.pose.position.x) > 0.0) 
+        if (fabs(carrot_pose.pose.position.y) < 0.1 && fabs(carrot_pose.pose.position.x) > 0.0)
         {
-
         }
         // else if (fabs(carrot_pose.pose.position.y) > 0.1 && fabs(carrot_pose.pose.position.x) > 0.1)
         // {
@@ -273,7 +272,7 @@ namespace regulated_pure_pursuit_controller
         //     lookahead_dist = (min_lookahead_dist_ + max_lookahead_dist_) / 2;
         //     carrot_pose = getLookAheadPoint(lookahead_dist, transformed_plan);
         // }
-        else 
+        else
         {
             // ROS_ERROR("During turns restrict the lookahead");
             // Set the lookahead distance to a minimum if the pose is far left or right
@@ -776,7 +775,6 @@ namespace regulated_pure_pursuit_controller
         {
             footprint_cost_deep_history_.push_back(footprint_cost);
         }
-
 
         bool answer = (footprint_cost >= static_cast<double>(costmap_2d::LETHAL_OBSTACLE) || count > 0);
         return answer;

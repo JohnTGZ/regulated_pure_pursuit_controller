@@ -16,6 +16,7 @@
 #ifndef REGULATED_PURE_PURSUIT_CONTROLLER_H
 #define REGULATED_PURE_PURSUIT_CONTROLLER_H
 
+// Include C++ library to perform computations
 #include <algorithm>
 
 #include <ros/ros.h>
@@ -34,10 +35,7 @@
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/PointStamped.h>
-
-// #include <regulated_pure_pursuit_controller/geometry_utils.h>
 #include <geometry_msgs/Pose2D.h>
-
 #include <mbf_costmap_core/costmap_controller.h>
 #include <mbf_msgs/ExePathResult.h>
 
@@ -48,7 +46,6 @@ namespace regulated_pure_pursuit_controller
 
   public:
     RegulatedPurePursuitController();
-
     ~RegulatedPurePursuitController()
     {
       delete costmap_model_;
@@ -57,27 +54,19 @@ namespace regulated_pure_pursuit_controller
     /**
      * Initialization methods
      */
-
     void initParams(ros::NodeHandle &nh);
-
     void initPubSubSrv(ros::NodeHandle &nh);
-
-    void initialize(std::string name, tf2_ros::Buffer *tf,
-                    costmap_2d::Costmap2DROS *costmap_ros);
+    void initialize(std::string name, tf2_ros::Buffer *tf, costmap_2d::Costmap2DROS *costmap_ros);
 
     /**
      * Inherited virtual methods from BaseLocalPlanner
      */
-
     bool setPlan(const std::vector<geometry_msgs::PoseStamped> &orig_global_plan);
-
     bool computeVelocityCommands(geometry_msgs::Twist &cmd_vel);
-
     uint32_t computeVelocityCommands(const geometry_msgs::PoseStamped &pose,
                                      const geometry_msgs::TwistStamped &velocity,
                                      geometry_msgs::TwistStamped &cmd_vel,
                                      std::string &message);
-
     bool pruneGlobalPlan(const tf2_ros::Buffer &tf, const geometry_msgs::PoseStamped &global_pose, std::vector<geometry_msgs::PoseStamped> &global_plan, double dist_behind_robot);
 
     /**
@@ -102,6 +91,12 @@ namespace regulated_pure_pursuit_controller
         const geometry_msgs::PoseStamped &global_pose, const costmap_2d::Costmap2D &costmap, const std::string &robot_base_frame, double max_plan_length,
         std::vector<geometry_msgs::PoseStamped> &transformed_plan, int *current_goal_idx, geometry_msgs::TransformStamped *tf_plan_to_robot_frame);
 
+    /**
+     * @brief Provides an indication of whether the goal has been reached by pure pursuit planner
+     * 
+     * @return true 
+     * @return false 
+     */
     bool isGoalReached();
 
     /**
@@ -112,6 +107,7 @@ namespace regulated_pure_pursuit_controller
       return isGoalReached();
     }
 
+    //? What is the & symbol?
     const bool &isInitialized()
     {
       return initialized_;
@@ -130,45 +126,36 @@ namespace regulated_pure_pursuit_controller
     /**
      * Calculation methods
      */
-
     bool shouldRotateToPath(const geometry_msgs::PoseStamped &carrot_pose,
                             double &angle_to_path);
-
     bool shouldRotateToGoalHeading(const geometry_msgs::PoseStamped &carrot_pose);
-
     void rotateToHeading(double &linear_vel, double &angular_vel,
                          const double &angle_to_path,
                          const geometry_msgs::Twist &curr_speed);
-
     void applyConstraints(
         const double &dist_error, const double &lookahead_dist,
         const double &curvature, const geometry_msgs::Twist & /*curr_speed*/,
         const double &pose_cost, double &linear_vel, double &sign);
-
     geometry_msgs::PoseStamped getLookAheadPoint(
         const double &lookahead_dist, const std::vector<geometry_msgs::PoseStamped> &transformed_plan);
-
-    bool getAlternateKinkLookAheadDistance(const std::vector<geometry_msgs::PoseStamped> &transformed_plan, geometry_msgs::PointStamped& kink_message);
-
+    bool getAlternateKinkLookAheadDistance(const std::vector<geometry_msgs::PoseStamped> &transformed_plan, geometry_msgs::PointStamped &kink_message);
     double getLookAheadDistance(const geometry_msgs::Twist &speed);
 
     nav_msgs::Path transformGlobalPlan(const geometry_msgs::PoseStamped &pose);
-
     bool transformPose(const std::string frame, const geometry_msgs::PoseStamped &in_pose,
                        geometry_msgs::PoseStamped &out_pose) const;
-
     double costAtPose(const double &x, const double &y);
-
     bool inCollision(const double &x, const double &y,
                      const double &theta);
-
     bool isCollisionImminent(
         const geometry_msgs::PoseStamped &robot_pose,
         const double &linear_vel, const double &angular_vel,
         const double &carrot_dist);
 
     /**
+     * ============================
      * Helper methods
+     * ============================
      */
 
     /**
@@ -177,32 +164,23 @@ namespace regulated_pure_pursuit_controller
      * @return double
      */
     double getCostmapMaxExtent() const;
-
     double euclidean_distance(const geometry_msgs::PoseStamped &p1,
                               const geometry_msgs::PoseStamped &p2);
-
     void createPathMsg(const std::vector<geometry_msgs::PoseStamped> &plan, nav_msgs::Path &path);
-
     geometry_msgs::PointStamped createCarrotMsg(const geometry_msgs::PoseStamped &carrot_pose);
-
     void getRobotVel(geometry_msgs::Twist &speed);
-
     void updateHeaderOfCmdVel(geometry_msgs::TwistStamped &cmd_vel);
-
     double getLength(const geometry_msgs::PoseStamped pose_one, const geometry_msgs::PoseStamped pose_two);
-
     void setSpeedLimit(const double &speed_limit, const bool &percentage);
 
   private:
     bool initialized_{false}; // indication of whether program has initialized
-
     bool get_alternate_lookahead_dist_{false};
 
     /**
      * User-defined params
      */
     std::string odom_topic_{"odom"};
-
     double max_robot_pose_search_dist_;
     double global_plan_prune_distance_{1.0};
 
@@ -245,6 +223,7 @@ namespace regulated_pure_pursuit_controller
     int min_global_plan_complete_size_;
     int deep_history_num_;
     ros::Duration transform_tolerance_;
+    
     // Control frequency
     double control_duration_;
 
@@ -259,10 +238,6 @@ namespace regulated_pure_pursuit_controller
     base_local_planner::OdometryHelperRos odom_helper_;
 
     // for visualisation, publishers of global and local plan
-    /**
-     * @brief
-     *
-     */
     ros::Publisher global_path_pub_, local_plan_pub_;
     ros::Publisher carrot_pub_;
     ros::Publisher carrot_arc_pub_;
@@ -278,10 +253,8 @@ namespace regulated_pure_pursuit_controller
      * Run-time variables
      */
     std::vector<geometry_msgs::PoseStamped> global_plan_; // Stores the current global plan
-    bool goal_reached_;
-
+    bool goal_reached_{false};
     std::unique_ptr<ddynamic_reconfigure::DDynamicReconfigure> ddr_;
-
     std::vector<double> footprint_cost_deep_history_;
 
     /**
