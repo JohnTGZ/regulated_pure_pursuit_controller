@@ -16,7 +16,6 @@ find_package(catkin REQUIRED COMPONENTS
         pluginlib
         ddynamic_reconfigure
         tf
-
         mbf_msgs
         mbf_costmap_core
 )
@@ -42,13 +41,15 @@ catkin_package(
         pluginlib
         ddynamic_reconfigure
         tf
-
         mbf_msgs
         mbf_costmap_core
 )
 
+# The first argument in add_library is the name of the library
 add_library(regulated_pure_pursuit_controller
-        src/regulated_pure_pursuit_controller.cpp)
+        src/regulated_pure_pursuit_controller.cpp
+        src/helper.cpp
+)
 
 target_link_libraries(regulated_pure_pursuit_controller 
                         ${catkin_LIBRARIES})
@@ -67,3 +68,9 @@ install(DIRECTORY include/${PROJECT_NAME}/
         DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
         PATTERN ".svn" EXCLUDE
         )
+
+## Add gtest based cpp test target and link libraries
+if(CATKIN_ENABLE_TESTING)
+    catkin_add_gtest(${PROJECT_NAME}-test test/regulated_pure_pursuit_tests.cpp)
+    target_link_libraries(${PROJECT_NAME}-test regulated_pure_pursuit_controller ${catkin_LIBRARIES} ${catkin_LIBRARIES})
+ endif()
