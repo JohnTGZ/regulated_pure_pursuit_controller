@@ -39,6 +39,8 @@
 #include <mbf_costmap_core/costmap_controller.h>
 #include <mbf_msgs/ExePathResult.h>
 
+#include "regulated_pure_pursuit_controller/helper.h"
+
 namespace regulated_pure_pursuit_controller
 {
   class RegulatedPurePursuitController : public nav_core::BaseLocalPlanner, public mbf_costmap_core::CostmapController
@@ -170,7 +172,6 @@ namespace regulated_pure_pursuit_controller
     geometry_msgs::PointStamped createCarrotMsg(const geometry_msgs::PoseStamped &carrot_pose);
     void getRobotVel(geometry_msgs::Twist &speed);
     void updateHeaderOfCmdVel(geometry_msgs::TwistStamped &cmd_vel);
-    double getLength(const geometry_msgs::PoseStamped pose_one, const geometry_msgs::PoseStamped pose_two);
     void setSpeedLimit(const double &speed_limit, const bool &percentage);
 
   private:
