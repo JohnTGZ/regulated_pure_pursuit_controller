@@ -11,7 +11,6 @@ RegulatedPurePursuitHelper::RegulatedPurePursuitHelper(double p1_x, double p1_y,
     obtainA();
     obtainB();
     cosineVector();
-
 }
 RegulatedPurePursuitHelper::~RegulatedPurePursuitHelper() {}
 
@@ -54,4 +53,9 @@ double RegulatedPurePursuitHelper::cosineVector()
 double RegulatedPurePursuitHelper::inverseCosineVector()
 {
     return std::acos(angle_);
+}
+
+double RegulatedPurePursuitHelper::inverseCosineVectorinDegrees()
+{
+    return std::acos(angle_) * 180.0 / M_PI;
 }

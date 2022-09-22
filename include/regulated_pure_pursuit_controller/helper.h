@@ -10,6 +10,7 @@ public:
     RegulatedPurePursuitHelper(double p1_x, double p1_y, double p2_x, double p2_y, double p3_x, double p3_y);
     ~RegulatedPurePursuitHelper();
     double inverseCosineVector();
+    double inverseCosineVectorinDegrees();
     double cosineVector();
     void obtainA();
     void obtainB();
