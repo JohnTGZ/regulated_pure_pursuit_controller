@@ -95,9 +95,9 @@ namespace regulated_pure_pursuit_controller
 
     /**
      * @brief Provides an indication of whether the goal has been reached by pure pursuit planner
-     * 
-     * @return true 
-     * @return false 
+     *
+     * @return true
+     * @return false
      */
     bool isGoalReached();
 
@@ -172,11 +172,13 @@ namespace regulated_pure_pursuit_controller
     geometry_msgs::PointStamped createCarrotMsg(const geometry_msgs::PoseStamped &carrot_pose);
     void getRobotVel(geometry_msgs::Twist &speed);
     void updateHeaderOfCmdVel(geometry_msgs::TwistStamped &cmd_vel);
+    bool kinkedIsPosWhileCarrotIsNeg(const geometry_msgs::PointStamped &message_one, const geometry_msgs::PoseStamped &message_two);
     void setSpeedLimit(const double &speed_limit, const bool &percentage);
 
   private:
     bool initialized_{false}; // indication of whether program has initialized
-    bool get_alternate_lookahead_dist_{false};
+    bool get_alternate_lookahead_dist_{false}, always_prioritise_alternate_lookahead_{false};
+    double lookahead_adjustment_y_tol_{0.1};
 
     /**
      * User-defined params
@@ -198,6 +200,9 @@ namespace regulated_pure_pursuit_controller
     double rotate_to_heading_min_angle_;
     double rotate_to_heading_angular_vel_;
     double max_angular_accel_;
+
+    // Kinked parameters
+    double kink_angle_thresh_{0.0};
 
     // Reversing
     bool allow_reversing_;
@@ -224,7 +229,7 @@ namespace regulated_pure_pursuit_controller
     int min_global_plan_complete_size_;
     int deep_history_num_;
     ros::Duration transform_tolerance_;
-    
+
     // Control frequency
     double control_duration_;
 

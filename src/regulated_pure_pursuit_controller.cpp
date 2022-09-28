@@ -90,6 +90,9 @@ namespace regulated_pure_pursuit_controller
         nh.param<double>("rotate_to_heading_angular_vel", rotate_to_heading_angular_vel_, 1.8);
         nh.param<double>("max_angular_accel", max_angular_accel_, 1.5);
 
+        // Kinked parameters
+        nh.param<double>("kink_angle_thresh", kink_angle_thresh_, 130);
+
         // Reversing
         nh.param<bool>("allow_reversing", allow_reversing_, false);
         if (use_rotate_to_heading_ && allow_reversing_)
@@ -129,7 +132,6 @@ namespace regulated_pure_pursuit_controller
 
         // Collision avoidance
         nh.param<double>("max_allowed_time_to_collision_up_to_carrot", max_allowed_time_to_collision_up_to_carrot_, 1.0);
-
         nh.param<double>("goal_dist_tol", goal_dist_tol_, 0.25);
 
         double control_frequency;
@@ -140,8 +142,16 @@ namespace regulated_pure_pursuit_controller
         nh.param<double>("transform_tolerance", transform_tolerance, 0.1);
         transform_tolerance_ = ros::Duration(transform_tolerance);
 
-        // Ddynamic Reconfigure
+        nh.param<bool>("get_alternate_lookahead_dist", get_alternate_lookahead_dist_, false);
+        nh.param<bool>("always_prioritise_alternate_lookahead", always_prioritise_alternate_lookahead_, false);
+        nh.param<double>("lookahead_adjustment_y_tol", lookahead_adjustment_y_tol_, 0.1);
 
+        if (!get_alternate_lookahead_dist_ && always_prioritise_alternate_lookahead_)
+        {
+            ROS_WARN("[Regulated Pure Pursuit] : Unable to not get alternate lookahead dist, but prioritise the alternate lookahead");
+        }
+
+        // Ddynamic Reconfigure
         ddr_.reset(new ddynamic_reconfigure::DDynamicReconfigure(nh));
         ddr_->registerVariable<double>("lookahead_time", &this->lookahead_time_, "", 0.0, 20.0);
         ddr_->registerVariable<double>("lookahead_dist", &this->lookahead_dist_, "", 0.0, 20.0);
@@ -175,10 +185,14 @@ namespace regulated_pure_pursuit_controller
         ddr_->registerVariable<double>("cost_scaling_gain", &this->cost_scaling_gain_, "", 0.0, 10.0);
 
         ddr_->registerVariable<bool>("get_alternate_lookahead_dist", &this->get_alternate_lookahead_dist_, "", false);
+        ddr_->registerVariable<bool>("always_prioritise_alternate_lookahead", &this->always_prioritise_alternate_lookahead_, "", false);
+        ddr_->registerVariable<double>("lookahead_adjustment_y_tol", &this->lookahead_adjustment_y_tol_, "", 0.0, 1.0);
+
 
         // Collision avoidance
         ddr_->registerVariable<double>("max_allowed_time_to_collision_up_to_carrot", &this->max_allowed_time_to_collision_up_to_carrot_, "", 0.0, 20.0);
         ddr_->registerVariable<double>("goal_dist_tol", &this->goal_dist_tol_, "", 0.0, 4.0);
+        ddr_->registerVariable<double>("kink_angle_thresh", &this->kink_angle_thresh_, "", 0.0, 180.0);
 
         ddr_->publishServicesTopics();
     }
@@ -260,15 +274,15 @@ namespace regulated_pure_pursuit_controller
 
         // Get lookahead point and publish for visualization
         geometry_msgs::PoseStamped carrot_pose = getLookAheadPoint(lookahead_dist, transformed_plan);
-        if (fabs(carrot_pose.pose.position.y) < 0.1 && fabs(carrot_pose.pose.position.x) > 0.0)
+        if (fabs(carrot_pose.pose.position.y) < lookahead_adjustment_y_tol_ && fabs(carrot_pose.pose.position.x) > 0.0)
         {
         }
         else
         {
             // ROS_ERROR("During turns restrict the lookahead");
             // Set the lookahead distance to a minimum if the pose is far left or right
-            lookahead_dist = min_lookahead_dist_;
-            carrot_pose = getLookAheadPoint(lookahead_dist, transformed_plan);
+            double shortened_lookahead_dist = min_lookahead_dist_;
+            carrot_pose = getLookAheadPoint(shortened_lookahead_dist, transformed_plan);
         }
 
         geometry_msgs::PointStamped kink_message;
@@ -276,14 +290,13 @@ namespace regulated_pure_pursuit_controller
         {
             double kinked_dist = std::hypot(kink_message.point.x, kink_message.point.y);
             double carrot_dist = std::hypot(carrot_pose.pose.position.x, carrot_pose.pose.position.y);
-            if (kinked_dist < carrot_dist || (carrot_pose.pose.position.x < 0.0 && kink_message.point.x) > 0.0)
+            if (always_prioritise_alternate_lookahead_ || kinked_dist < carrot_dist || kinkedIsPosWhileCarrotIsNeg(kink_message, carrot_pose))
             {
                 carrot_pose.pose.position.x = kink_message.point.x;
                 carrot_pose.pose.position.y = kink_message.point.y;
                 carrot_pose.pose.position.z = kink_message.point.z;
             }
         }
-
         carrot_pub_.publish(createCarrotMsg(carrot_pose));
 
         // Carrot distance squared
@@ -500,10 +513,12 @@ namespace regulated_pure_pursuit_controller
         for (unsigned int i = 0; i < transformed_plan.size() - number_of_odd_elements - 1; i++)
         {
             dummy_path.poses.push_back(transformed_plan[i]);
+
+            // Obtain the angle of the path
             RegulatedPurePursuitHelper regulated_helper_instance(transformed_plan[i].pose.position.x, transformed_plan[i].pose.position.y, transformed_plan[i + half].pose.position.x, transformed_plan[i + half].pose.position.y, transformed_plan[i + full].pose.position.x, transformed_plan[i + full].pose.position.y);
             double angle_in_degrees = regulated_helper_instance.inverseCosineVectorinDegrees();
             
-            if (angle_in_degrees < 110)
+            if (angle_in_degrees < kink_angle_thresh_)
             {
                 // publish a pose
                 kink_message.header.stamp = ros::Time::now();
@@ -903,5 +918,15 @@ namespace regulated_pure_pursuit_controller
         cmd_vel.header.stamp = ros::Time::now();
         cmd_vel.header.frame_id = robot_base_frame_;
         cmd_vel.twist.linear.x = cmd_vel.twist.linear.y = cmd_vel.twist.angular.z = 0;
+    }
+
+    bool RegulatedPurePursuitController::kinkedIsPosWhileCarrotIsNeg(const geometry_msgs::PointStamped& message_one, const geometry_msgs::PoseStamped& message_two)
+    {
+        if ((message_two.pose.position.x < 0.0 && message_one.point.x) > 0.0)
+        {
+            return true;
+        }
+
+        return false;
     }
 }
